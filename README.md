@@ -150,7 +150,7 @@ Every candidate patch is evaluated across **all 4 storefront pages** (`index.htm
 
 > [!IMPORTANT]
 > **Final Outcome**: `axe violations 58 → 0, 26 items need human review`  
-> **Cloud Run Live Argon Latency**: `13.9 s` and `16.2 s` per streamed diagnose-and-patch round (`93.0%` implicit prefix cache hit rate)
+> **Cloud Run Live Argon Latency**: `13.9 s` and `16.2 s` per streamed diagnose-and-patch round
 
 | Version | Group / Scene | Engine / Source | Violations (`4 pages`) | Guard | Condition 6 (Hidden) | Verdict & Key Detail |
 | :---: | :--- | :--- | :---: | :---: | :---: | :--- |
