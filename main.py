@@ -472,7 +472,21 @@ def _build_verifier_runner_script(
 
   function startScan() {{
     var fontsReady = (document.fonts && document.fonts.ready) ? document.fonts.ready : Promise.resolve();
-    fontsReady.then(function() {{
+    var imgs = Array.prototype.slice.call(document.images || []);
+    var imgsReady = Promise.all(imgs.map(function(img) {{
+      if (img.complete && img.naturalWidth > 0) {{
+        return img.decode ? img.decode().catch(function(){{}}) : Promise.resolve();
+      }}
+      return new Promise(function(res) {{
+        img.addEventListener('load', function() {{
+          if (img.decode) img.decode().catch(function(){{}}).then(res);
+          else res();
+        }}, {{ once: true }});
+        img.addEventListener('error', function() {{ res(); }}, {{ once: true }});
+        setTimeout(res, 2500);
+      }});
+    }}));
+    Promise.all([fontsReady, imgsReady]).then(function() {{
       nextFrame(function() {{
         nextFrame(function() {{
           try {{
