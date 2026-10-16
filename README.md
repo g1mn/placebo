@@ -7,9 +7,12 @@
 [![Track 3: Google AI for Social Good](https://img.shields.io/badge/Track_3-Google_AI_for_Social_Good-0284c7?style=for-the-badge)](https://soundcheck-129595935968.asia-northeast3.run.app/?replay=demo-run)
 [![Cloud Run: Live](https://img.shields.io/badge/Cloud_Run-asia--northeast3-22c55e?style=for-the-badge&logo=googlecloud&logoColor=white)](https://soundcheck-129595935968.asia-northeast3.run.app)
 [![Primary Model: gemini-4-argon](https://img.shields.io/badge/Model-gemini--4--argon-8b5cf6?style=for-the-badge)](https://soundcheck-129595935968.asia-northeast3.run.app/?replay=demo-run)
+[![Demo Video: YouTube](https://img.shields.io/badge/YouTube-3_Min_Demo-ef4444?style=for-the-badge&logo=youtube&logoColor=white)](https://youtu.be/2iEKS7V5sTE)
 [![Verifier: axe-core 4.14.0](https://img.shields.io/badge/Verifier-axe--core_4.14.0-f59e0b?style=for-the-badge)](https://github.com/dequelabs/axe-core)
 
-**[🚀 Open Live Cloud Run App](https://soundcheck-129595935968.asia-northeast3.run.app)** · **[🎬 Watch Recorded Run Replay (No Token Needed)](https://soundcheck-129595935968.asia-northeast3.run.app/?replay=demo-run)** · **[📄 Read Submission Summary](SUBMISSION.md)**
+**[▶️ Watch 3-Min Demo Video (YouTube)](https://youtu.be/2iEKS7V5sTE)** · **[🎬 Watch Recorded Run Replay (No Token Needed)](https://soundcheck-129595935968.asia-northeast3.run.app/?replay=demo-run)** · **[🚀 Open Live Cloud Run App](https://soundcheck-129595935968.asia-northeast3.run.app)** · **[📄 Read Submission Summary](SUBMISSION.md)**
+
+[![SoundCheck 3-Minute Demo Video](https://img.youtube.com/vi/2iEKS7V5sTE/hqdefault.jpg)](https://youtu.be/2iEKS7V5sTE)
 
 </div>
 
