@@ -8,7 +8,7 @@
 
 ### Short Version (~100 Words)
 
-SoundCheck is an accessibility repair workflow that stops AI patches from gaming automated checkers. Code can pass a linter while failing blind shoppers: on our four-page demo storefront, a cheating patch drives `axe-core` violations from 58 down to 0 yet labels every photo `alt="image"` and hides 125 characters of visible text (`936 → 811`), while a naive contrast edit lowers violations from 58 to 53 but introduces 12 new failures on dark surfaces. SoundCheck blocks both. `gemini-4-argon` patches shared templates and CSS tokens at the source, six whole-site conditions verify every change, a human approves each diff, and `gemini-3.8-flash-tts` voices the screen-reader readout before (`"button. link. button. image."`) and after (`"Search. Cart. Menu. Navy wool coat."`). Final result: axe violations `58 → 0, 26 items need human review`.
+SoundCheck is an accessibility repair workflow that stops AI patches from gaming automated checkers. Code can pass an automated checker while failing blind shoppers: on our four-page demo storefront, a cheating patch drives `axe-core` violations from 58 down to 0 yet labels every photo `alt="image"` and hides 125 characters of visible text (`936 → 811`), while a naive contrast edit lowers violations from 58 to 53 but introduces 12 new failures on dark surfaces. SoundCheck blocks both. `gemini-4-argon` patches shared templates and CSS tokens at the source, six whole-site conditions verify every change, a human approves each diff, and `gemini-3.8-flash-tts` voices the screen-reader readout before (`"button. link. button. image."`) and after (`"Search. Cart. Menu. Navy wool coat."`). Final result: axe violations `58 → 0, 26 items need human review`.
 
 ---
 
