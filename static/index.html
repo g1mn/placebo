@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>SoundCheck — Accessibility fixes that can't fool the checker</title>
+  <title>Placebo — Accessibility fixes that can't fool the checker</title>
   <style>
     :root {
       --bg: #0f141c;
@@ -287,7 +287,7 @@
 
   <header class="top-bar">
     <div>
-      <h1 class="brand-title">SoundCheck</h1>
+      <h1 class="brand-title">Placebo</h1>
       <p class="brand-sub">Accessibility fixes that can't fool the checker. Hear the difference.</p>
     </div>
     <div class="top-controls">
@@ -461,7 +461,7 @@
       <section id="scene-d-panel" class="panel" style="display:none;">
         <h2>
           <span>Scene D: Real Input — Themefisher Aviato Template (Scan + Diagnosis Only)</span>
-          <span class="badge badge-amber">Passes axe — flagged by SoundCheck</span>
+          <span class="badge badge-amber">Passes axe — flagged by Placebo</span>
         </h2>
         <div id="aviato-content" style="font-size:13px;"></div>
       </section>
@@ -480,7 +480,7 @@
           </div>
         </h2>
         <div class="preview-frame-wrap">
-          <iframe id="verifier-frame" sandbox="allow-scripts" title="SoundCheck Store Preview"></iframe>
+          <iframe id="verifier-frame" sandbox="allow-scripts" title="Placebo Store Preview"></iframe>
         </div>
       </section>
 
@@ -640,7 +640,7 @@
         streamLog.textContent =
           '=== v' + vNum + ' · ' + vObj.label + ' (REJECTED) ===\n' +
           'axe-core count: ' + (vObj.scan ? vObj.scan.total_violations : '—') + '\n' +
-          'Verdict: REJECTED by SoundCheck verification.';
+          'Verdict: REJECTED by Placebo verification.';
       }
       renderUI();
     }
@@ -1187,7 +1187,7 @@
       // Restore store preview
       frame.src = '/preview/' + encodeURIComponent(state.run.run_id) + '/v' + state.run.current_version + '/' + currentPage;
 
-      content.innerHTML = 'Running SoundCheck deterministic checks + Gemini 4 Argon root-cause diagnosis on Aviato...';
+      content.innerHTML = 'Running Placebo deterministic checks + Gemini 4 Argon root-cause diagnosis on Aviato...';
       var resp = await fetch('/api/run/' + encodeURIComponent(state.run.run_id) + '/aviato-diagnose', {
         method: 'POST',
         headers: authHeaders(),

@@ -44,7 +44,7 @@ from store_engine import (
     render_page_with_includes,
 )
 
-app = FastAPI(title="SoundCheck")
+app = FastAPI(title="Placebo")
 
 STATIC_DIR = REPO_ROOT / "static"
 REPLAYS_DIR = REPO_ROOT / "replays"
@@ -1485,7 +1485,7 @@ async def generate_readout_tts(run_id: str, request: Request) -> dict[str, Any]:
 @app.post("/api/run/{run_id}/aviato-diagnose")
 async def run_aviato_diagnosis(run_id: str, request: Request) -> dict[str, Any]:
     """
-    Scene D: Real input (Themefisher Aviato) scan + 3 deterministic SoundCheck findings + Argon diagnosis.
+    Scene D: Real input (Themefisher Aviato) scan + 3 deterministic Placebo findings + Argon diagnosis.
     """
     _check_demo_token(request)
     body = await request.json()
@@ -1609,5 +1609,5 @@ async def serve_ui() -> HTMLResponse:
             headers={"Cache-Control": "no-store"},
         )
     return HTMLResponse(
-        content="<!doctype html><html lang='en'><head><meta charset='utf-8'><title>SoundCheck</title></head><body><h1>SoundCheck</h1></body></html>"
+        content="<!doctype html><html lang='en'><head><meta charset='utf-8'><title>Placebo</title></head><body><h1>Placebo</h1></body></html>"
     )

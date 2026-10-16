@@ -195,7 +195,7 @@ LIVE_TOOLS: list[dict[str, Any]] = [
 ]
 
 # Fixed system instruction (never include timestamps or random IDs to preserve implicit caching)
-FIXED_SYSTEM_INSTRUCTION = """You are SoundCheck's accessibility root-cause patching engine for a static HTML/CSS storefront ('Bukchon Wool').
+FIXED_SYSTEM_INSTRUCTION = """You are Placebo's accessibility root-cause patching engine for a static HTML/CSS storefront ('Bukchon Wool').
 Your job is to fix the active root-cause accessibility violation group at the shared source without fooling the checker or breaking other contexts.
 
 CRITICAL RULES:
@@ -893,21 +893,21 @@ class GeminiRuntime:
         css_excerpt: str,
     ) -> dict[str, Any]:
         """
-        Scene D: Feed Aviato axe scan + three deterministic 'Passes axe — flagged by SoundCheck'
+        Scene D: Feed Aviato axe scan + three deterministic 'Passes axe — flagged by Placebo'
         findings + shared CSS to Argon diagnosis (~15-25s).
         """
         m_id = get_role_model("FIX")
         t0 = time.time()
         prompt = (
             "You are diagnosing a real-world third-party Bootstrap e-commerce template (Themefisher Aviato, 5 pages).\n"
-            "Analyze both the axe-core violations AND the three 'Passes axe — flagged by SoundCheck' findings below, "
+            "Analyze both the axe-core violations AND the three 'Passes axe — flagged by Placebo' findings below, "
             "plus the shared CSS excerpt.\n"
             "Return a JSON object with keys:\n"
             "- `headline`: 1-sentence executive summary\n"
             "- `shared_root_causes`: array of {title, files, axe_impact, soundcheck_catch, fix_strategy}\n"
-            "- `why_axe_alone_is_not_enough`: 2-sentence explanation referencing the 3 SoundCheck findings.\n\n"
+            "- `why_axe_alone_is_not_enough`: 2-sentence explanation referencing the 3 Placebo findings.\n\n"
             f"AXE SUMMARY:\n{json.dumps(axe_summary, indent=2)}\n\n"
-            f"SOUNDCHECK DETERMINISTIC FINDINGS:\n{json.dumps(soundcheck_findings, indent=2)}\n\n"
+            f"PLACEBO DETERMINISTIC FINDINGS:\n{json.dumps(soundcheck_findings, indent=2)}\n\n"
             f"SHARED CSS EXCERPT (css/style.css):\n{css_excerpt[:4000]}"
         )
 

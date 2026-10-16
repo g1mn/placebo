@@ -7358,7 +7358,7 @@
     "aviato_findings": [
       {
         "id": "generic_alt_or_aria_name",
-        "badge": "Passes axe — flagged by SoundCheck",
+        "badge": "Passes axe — flagged by Placebo",
         "title": "Generic or non-descriptive alt / aria-label values on content images",
         "count": 11,
         "examples": [
@@ -7373,7 +7373,7 @@
       },
       {
         "id": "focus_outline_removed",
-        "badge": "Passes axe — flagged by SoundCheck",
+        "badge": "Passes axe — flagged by Placebo",
         "title": "CSS removes :focus outline (outline: 0 / none) without a visible focus indicator",
         "count": 4,
         "examples": [
@@ -7386,7 +7386,7 @@
       },
       {
         "id": "placeholder_only_form_controls",
-        "badge": "Passes axe — flagged by SoundCheck",
+        "badge": "Passes axe — flagged by Placebo",
         "title": "Form controls relying on placeholder text without a persistent <label>",
         "count": 7,
         "examples": [
@@ -7403,7 +7403,7 @@
     "aviato_diagnosis": {
       "model": "gemini-4-argon",
       "diagnosis": {
-        "headline": "The Themefisher Aviato template suffers from 114 axe-core violations and 22 additional SoundCheck accessibility defects driven by global CSS overrides, unlabeled interactive controls, and generic template placeholders across all 5 e-commerce pages.",
+        "headline": "The Themefisher Aviato template suffers from 114 axe-core violations and 22 additional Placebo accessibility defects driven by global CSS overrides, unlabeled interactive controls, and generic template placeholders across all 5 e-commerce pages.",
         "shared_root_causes": [
           {
             "title": "Global CSS resets stripping focus indicators and link distinguishability",
@@ -7446,7 +7446,7 @@
             "fix_strategy": "Replace all missing and generic `alt=\"image\"` attributes with specific product names and visual descriptions (or `alt=\"\"` for purely decorative graphics)."
           }
         ],
-        "why_axe_alone_is_not_enough": "While axe-core flags missing attributes, it automatically passes syntactically valid anti-patterns such as generic `alt=\"image\"` strings (`generic_alt_or_aria_name`), stylesheet rules that strip `:focus` outlines (`focus_outline_removed`), and inputs that rely on non-persistent `placeholder` text instead of visible labels (`placeholder_only_form_controls`). SoundCheck catches these 22 semantic and CSS-level barriers that otherwise leave screen-reader shoppers without product context, keyboard users without focus visibility, and cognitive/low-vision users without persistent form labels."
+        "why_axe_alone_is_not_enough": "While axe-core flags missing attributes, it automatically passes syntactically valid anti-patterns such as generic `alt=\"image\"` strings (`generic_alt_or_aria_name`), stylesheet rules that strip `:focus` outlines (`focus_outline_removed`), and inputs that rely on non-persistent `placeholder` text instead of visible labels (`placeholder_only_form_controls`). Placebo catches these 22 semantic and CSS-level barriers that otherwise leave screen-reader shoppers without product context, keyboard users without focus visibility, and cognitive/low-vision users without persistent form labels."
       },
       "elapsed_s": 18.69,
       "usage": {

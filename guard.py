@@ -657,8 +657,8 @@ def build_retry_feedback(eval_result: dict[str, Any]) -> dict[str, Any]:
 
 def scan_aviato_deterministic_findings(aviato_dir: Path) -> list[dict[str, Any]]:
     """
-    Scene D: Three deterministic SoundCheck findings on inputs/aviato/,
-    labelled 'Passes axe — flagged by SoundCheck':
+    Scene D: Three deterministic Placebo findings on inputs/aviato/,
+    labelled 'Passes axe — flagged by Placebo':
     1. Existing alt/aria-label values on the generic-name denylist
     2. CSS that sets outline 0/none on :focus without a replacement
     3. Form controls named only by placeholder
@@ -701,7 +701,7 @@ def scan_aviato_deterministic_findings(aviato_dir: Path) -> list[dict[str, Any]]
     findings.append(
         {
             "id": "generic_alt_or_aria_name",
-            "badge": "Passes axe — flagged by SoundCheck",
+            "badge": "Passes axe — flagged by Placebo",
             "title": "Generic or non-descriptive alt / aria-label values on content images",
             "count": len(generic_hits),
             "examples": generic_hits[:6],
@@ -725,7 +725,7 @@ def scan_aviato_deterministic_findings(aviato_dir: Path) -> list[dict[str, Any]]
     findings.append(
         {
             "id": "focus_outline_removed",
-            "badge": "Passes axe — flagged by SoundCheck",
+            "badge": "Passes axe — flagged by Placebo",
             "title": "CSS removes :focus outline (outline: 0 / none) without a visible focus indicator",
             "count": len(focus_hits),
             "examples": focus_hits[:6],
@@ -737,7 +737,7 @@ def scan_aviato_deterministic_findings(aviato_dir: Path) -> list[dict[str, Any]]
     findings.append(
         {
             "id": "placeholder_only_form_controls",
-            "badge": "Passes axe — flagged by SoundCheck",
+            "badge": "Passes axe — flagged by Placebo",
             "title": "Form controls relying on placeholder text without a persistent <label>",
             "count": len(placeholder_only_hits),
             "examples": placeholder_only_hits[:6],

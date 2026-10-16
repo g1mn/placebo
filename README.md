@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🔊 SoundCheck
+# 💊 Placebo
 
 ### **Accessibility fixes that can't fool the checker. Hear the difference.**
 
@@ -12,7 +12,7 @@
 
 **[▶️ Watch 3-Min Demo Video (YouTube)](https://youtu.be/2iEKS7V5sTE)** · **[🎬 Watch Recorded Run Replay (No Token Needed)](https://soundcheck-129595935968.asia-northeast3.run.app/?replay=demo-run)** · **[🚀 Open Live Cloud Run App](https://soundcheck-129595935968.asia-northeast3.run.app)** · **[📄 Read Submission Summary](SUBMISSION.md)**
 
-[![SoundCheck 3-Minute Demo Video](https://img.youtube.com/vi/2iEKS7V5sTE/hqdefault.jpg)](https://youtu.be/2iEKS7V5sTE)
+[![Placebo 3-Minute Demo Video](https://img.youtube.com/vi/2iEKS7V5sTE/hqdefault.jpg)](https://youtu.be/2iEKS7V5sTE)
 
 </div>
 
@@ -23,7 +23,7 @@
 
 ---
 
-## ⚡ Why SoundCheck Exists
+## ⚡ Why Placebo Exists
 
 An AI accessibility patch can make an automated linter report **zero violations** while leaving the page unusable for a blind shopper—for example by stamping `alt="image"` onto every product photo, setting `aria-label="button"` on icon controls, relying solely on `placeholder="Email"` without a `<label>`, or hiding low-contrast text with `display: none`.
 
@@ -86,7 +86,7 @@ flowchart TB
 
 ### Multi-Model Role Division
 
-| Role Env Var | Default Model | Thinking Level | Responsibility in SoundCheck |
+| Role Env Var | Default Model | Thinking Level | Responsibility in Placebo |
 | :--- | :--- | :---: | :--- |
 | `MODEL_FIX` | `gemini-4-argon` | `medium` | Diagnoses multi-page root causes across shared HTML partials (`partials/*.html`) and CSS tokens (`css/*.css`), and proposes unified source patches via manual function calling (`update`, `submit_diagnosis`, `propose_patch`, `escalate_group`, `read_file`, `run_scan`). |
 | `MODEL_ASSIST` | `gemini-3.8-flash` | `low` | Inspects each product/banner JPEG (`img/*.jpg`) as a separate multimodal image part and drafts **3 concise `alt` candidates per image in parallel** for human selection. Content image `alt` text never goes through Argon. |
@@ -103,7 +103,7 @@ sequenceDiagram
     autonumber
     actor Human as 👤 Human Reviewer
     participant UI as 🌐 Browser Verifier (axe-core)
-    participant API as ⚙️ SoundCheck Server & Guard
+    participant API as ⚙️ Placebo Server & Guard
     participant Argon as 🧠 gemini-4-argon
     participant Assist as 🖼️ gemini-3.8-flash / TTS
 
@@ -187,7 +187,7 @@ In the baseline storefront (`v0`), a single CSS custom property `--color-text-mu
 
 ## 🔍 Scene D: Real-World Template Scan (`inputs/aviato/`)
 
-SoundCheck also scans 5 pages (`index.html`, `shop.html`, `product-single.html`, `cart.html`, `checkout.html`) from the open-source **Themefisher Aviato** Bootstrap e-commerce template (scan + diagnosis only; never modified) and highlights three real-world patterns labeled **`"Passes axe — flagged by SoundCheck"`**:
+Placebo also scans 5 pages (`index.html`, `shop.html`, `product-single.html`, `cart.html`, `checkout.html`) from the open-source **Themefisher Aviato** Bootstrap e-commerce template (scan + diagnosis only; never modified) and highlights three real-world patterns labeled **`"Passes axe — flagged by Placebo"`**:
 
 1. **Generic non-descriptive `alt` / `aria-label` values** (`alt="product-img"`, `alt="image"`).
 2. **Focus outline removed in CSS** (`:focus { outline: 0 }`) without a visible `:focus-visible` replacement.
@@ -198,7 +198,7 @@ SoundCheck also scans 5 pages (`index.html`, `shop.html`, `product-single.html`,
 ## 📁 Repository Structure
 
 ```text
-soundcheck/
+placebo/
 ├── main.py                  # FastAPI server, /preview renderer, SSE stream, 6-condition evaluator
 ├── gemini_agent.py          # Gemini Interactions API wrapper, manual function-calling loop, spend meter
 ├── guard.py                 # Deterministic Guard, Condition 6 Hidden Check, Aviato static checks

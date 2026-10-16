@@ -1,12 +1,12 @@
-# SoundCheck — Agent Brief
+# Placebo — Agent Brief
 
 Read all of this before doing anything. It is the source of truth for this repo. If a request conflicts with it, follow the human's latest instruction.
 
 ## 1. Mission
 
 - **Event**: Google DeepMind AI Hackathon, Seoul, 2026-10-16. Coding 11:20–15:20 KST. Solo. **Track 3** — Google AI for social good (accessibility). Fallback: Track 4 (developer tools) with the same build, only if the human decides so before 11:20.
-- **SoundCheck** — "Accessibility fixes that can't fool the checker. Hear the difference."
-- **Identity**: AI accessibility fixes can fool the checker. SoundCheck catches the trick and lets you hear what a screen-reader user actually hears change.
+- **Placebo** — "Accessibility fixes that can't fool the checker. Hear the difference."
+- **Identity**: AI accessibility fixes can fool the checker. Placebo catches the trick and lets you hear what a screen-reader user actually hears change.
 - **Loop**: axe-core scans every page of a small static site → Gemini 4 Argon diagnoses the shared root cause and patches the source (tokens, shared header/form/layout) → the whole site is re-verified with axe-core plus hidden "no harm" checks the patching model never sees → checker-fooling patches are rejected → a human approves → a simulated screen-reader readout plays before and after.
 - **People**: helps blind shoppers using screen readers and keyboards; used by small-store developers and theme authors before a certification audit.
 - **Done at 15:20**: public Cloud Run URL running baseline → patch → re-verify → approve → readout (plus a recorded replay); public GitHub repo with an English README listing only features that actually ran; 3-minute demo video uploaded; project description submitted.
@@ -45,14 +45,14 @@ Read all of this before doing anything. It is the source of truth for this repo.
 **Real input (scene D)**
 - themefisher/aviato-bootstrap @ df6686f8cd7756393d65aae3fa23b9257985765a (MIT). Copy about 5 pages from theme/ plus css/style.css and LICENSE into inputs/aviato/. Strip every script tag before committing (jQuery plugins and a Google Maps script that embeds a third-party API key). Never its images. Backup: uakp98/shoe_store @ 30f34c38ec7521408d2e151d3b2fc78d765db98e (Apache-2.0, keep its LICENSE).
 - Scan + diagnosis only, never patched. In this mode window.onerror is a warning, not a failure; axe "incomplete" items are listed separately.
-- Three deterministic SoundCheck findings shown next to axe, labelled "Passes axe — flagged by SoundCheck": existing alt/aria-label values on the generic-name denylist; CSS that sets outline 0/none on :focus without a replacement; form controls named only by placeholder. Feed these plus the shared CSS to the Argon diagnosis.
+- Three deterministic Placebo findings shown next to axe, labelled "Passes axe — flagged by Placebo": existing alt/aria-label values on the generic-name denylist; CSS that sets outline 0/none on :focus without a replacement; form controls named only by placeholder. Feed these plus the shared CSS to the Argon diagnosis.
 
 **Verifier**
 - axe-core 4.14.0 vendored (keep MPL header), served same-origin from /static. No CDN.
 - /preview/{run}/v{n}/{page} with Cache-Control: no-store and CSP connect-src 'none'; form-action 'none'. All site assets (CSS, images, includes) resolve relative to /preview/{run}/v{n}/ so each version renders its own patched files.
 - Server appends axe + a runner to each preview. Runner: load → document.fonts.ready → 2× requestAnimationFrame → axe runOnly tags wcag2a, wcag2aa, wcag21a, wcag21aa (no wcag22aa, no best-practice; same for the aviato scan) + hidden checks → postMessage to parent. Also reports window.onerror, load timeout, unfinished axe; wraps axe in try/catch and posts its own error text (cross-origin script errors only say "Script error.").
 - iframe sandbox="allow-scripts" only, so the iframe origin is opaque: the runner posts with targetOrigin "*" and a per-run nonce; the parent accepts a message only if event.source is the preview iframe's contentWindow and the nonce matches (event.origin will be "null").
-- The scan runs in the browser that has the SoundCheck UI open (presenter's or judge's); there is no server-side browser. Pages scanned one at a time. The model never sees verifier source, only result JSON. Violation keys (the counting unit) are (page, rule, selector); a model target given as {rule, selector} is expanded by the server to every page where that selector appears.
+- The scan runs in the browser that has the Placebo UI open (presenter's or judge's); there is no server-side browser. Pages scanned one at a time. The model never sees verifier source, only result JSON. Violation keys (the counting unit) are (page, rule, selector); a model target given as {rule, selector} is expanded by the server to every page where that selector appears.
 
 **Patch format**: whole-file for files ≤ 300 lines, otherwise SEARCH/REPLACE blocks that match exactly once in the last approved version; never unified diff (the server may generate one for the human's download). Backstop: reject when deleted or replaced lines exceed 40% of the original and the file has more than 30 lines; additions do not count.
 
@@ -109,7 +109,7 @@ Read all of this before doing anything. It is the source of truth for this repo.
 - **A. Cheating patch rejected**: "Inject a cheating patch" applies one fixed patch to the broken baseline, labelled "Pre-built cheating patch (not model output)", that fools axe on all six types: alt="image" on all 13 images incl. the banner; display:none on the 6 white-background muted selectors; aria-label="button" on .search-toggle/.menu-toggle and aria-label="link" on .cart-link and both .social a; placeholder="Email" only on #newsletter-email; lang="en" in layout-top.html — the only genuine fix. role="presentation" on a content image is a separate single-patch button (A2). The axe counter shows 0 (verify before recording); guard red ('Rejected — alt="image" is not a description'); hidden check red ("Patch model never saw this check"). No aria-hidden on focusable elements (axe catches that).
 - **B. Regression caught**: 'Try a naive per-violation fix' applies a pre-built patch (--color-text-muted → #767676) to the baseline, labelled "Pre-built naive fix: darken the one failing color (one violation at a time, not model output)"; the whole-site re-scan goes red (12 new header/footer failures) and condition 2 rejects it. Then a separate, fresh Argon run is shown exactly as it happened. Never feed the scripted patch's result into an Argon chain. Narration must describe what actually happened in the recorded run.
 - **C. Hear it**: "Simulated screen-reader readout (voiced by Gemini TTS)". In DOM order: the three header icon controls (Search button, Cart link, Menu button) and the first product photo on home. Empty name → role word only; otherwise the accessible name only. Before: 'button. link. button. image.' After: 'Search. Cart. Menu. Navy wool coat.' Label: 'Simulated readout: accessible name, or the role when the name is empty.' Extracted deterministically in the preview; never synthesize names that are not in the DOM.
-- **D. Real input**: aviato scan → diagnosis card with the three "Passes axe — flagged by SoundCheck" findings, ~30 s.
+- **D. Real input**: aviato scan → diagnosis card with the three "Passes axe — flagged by Placebo" findings, ~30 s.
 - **E. (optional, no code)**: same site run locally with MODEL_* switched to gemini-3.8-flash; only if everything else is done; no comparison UI.
 - **Budget**: scan 15 s → one Argon diagnose+patch round (cutoff 85 s, streamed) → re-scan 15 s → one retry (cutoff 40 s) → readout 10 s. Over a cutoff → immediate replay.
 - Results table (from "Run all groups"): N → M violations, R regressions caught (source labelled, e.g. 'pre-built naive fix'); never say Argon regressed unless the recorded run shows it; G cheating patches rejected, K handed to a human, spend, cache hit %; always labelled "Run <id> · recorded HH:MM KST".
