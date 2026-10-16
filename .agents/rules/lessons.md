@@ -2,3 +2,5 @@
 - Google Frontend on `*.run.app` intercepts `/healthz` with a 404; use `/` or `/api/health` instead.
 - On macOS headless Chrome, `CVDisplayLinkCreateWithCGDisplay` fails so `requestAnimationFrame` callbacks need a 50ms `setTimeout` race fallback (`nextFrame`).
 - In `google-genai 2.31.0`, `client.interactions.create(..., stream=True)` emits `function_call` steps via `step.start` + `step.delta` (`delta.arguments` JSON string chunks); `interaction.completed` carries `id`, `status`, and `usage`, not `interaction.steps`.
+- Wait for `document.images` (`img.decode()`) in addition to `document.fonts.ready` before running `axe.run`, otherwise uncached `800x800` product JPEGs over HTTPS can shift layout mid-scan and make `color-contrast` non-deterministic.
+- `max_output_tokens` on `client.interactions.create` includes `thought_tokens`; set `>= 2048` on `gemini-3.8-flash` multimodal image calls and `>= 1024` on `gemini-3.5-flash-lite` JSON calls so `thinking_level: low` does not end with `status: incomplete`.

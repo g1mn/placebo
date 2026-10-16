@@ -762,7 +762,7 @@ class GeminiRuntime:
                         input=parts,
                         generation_config={
                             "thinking_level": get_role_thinking("ASSIST"),
-                            "max_output_tokens": 512,
+                            "max_output_tokens": 2048,
                         },
                         timeout=25.0,
                     )
@@ -824,7 +824,7 @@ class GeminiRuntime:
                     ),
                     generation_config={
                         "thinking_level": get_role_thinking("ROUTER"),
-                        "max_output_tokens": 256,
+                        "max_output_tokens": 1024,
                     },
                     timeout=15.0,
                 )
