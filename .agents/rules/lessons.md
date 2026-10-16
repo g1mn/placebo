@@ -1,1 +1,3 @@
 - `gcplab.me` participant account cannot call project-level `setIamPolicy`, but default compute SA (`129595935968-compute@developer.gserviceaccount.com`) already has `roles/editor` and resource-level `gcloud secrets add-iam-policy-binding` works.
+- Google Frontend on `*.run.app` intercepts `/healthz` with a 404; use `/` or `/api/health` instead.
+- On macOS headless Chrome, `CVDisplayLinkCreateWithCGDisplay` fails so `requestAnimationFrame` callbacks need a 50ms `setTimeout` race fallback (`nextFrame`).

@@ -1,0 +1,1301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SoundCheck — Accessibility fixes that can't fool the checker</title>
+  <style>
+    :root {
+      --bg: #0f141c;
+      --panel: #171f2c;
+      --panel-alt: #1e293b;
+      --border: #334155;
+      --text: #f1f5f9;
+      --muted: #cbd5e1;
+      --accent: #38bdf8;
+      --accent-strong: #0284c7;
+      --green: #22c55e;
+      --green-bg: rgba(34, 197, 94, 0.14);
+      --red: #f87171;
+      --red-bg: rgba(248, 113, 113, 0.15);
+      --amber: #fbbf24;
+      --amber-bg: rgba(251, 191, 36, 0.15);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+      font-size: 14px;
+    }
+    a { color: var(--accent); }
+    button, input, select {
+      font-family: inherit;
+      font-size: 13px;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 13px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: var(--panel-alt);
+      color: var(--text);
+      font-weight: 600;
+      cursor: pointer;
+      text-decoration: none;
+    }
+    .btn:hover { border-color: var(--accent); }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-primary {
+      background: var(--accent-strong);
+      border-color: var(--accent);
+      color: #fff;
+    }
+    .btn-danger {
+      background: rgba(239, 68, 68, 0.2);
+      border-color: var(--red);
+      color: #fecaca;
+    }
+    .btn-warn {
+      background: rgba(245, 158, 11, 0.2);
+      border-color: var(--amber);
+      color: #fde68a;
+    }
+    .btn-success {
+      background: rgba(34, 197, 94, 0.22);
+      border-color: var(--green);
+      color: #bbf7d0;
+    }
+    .top-bar {
+      background: #0b0f17;
+      border-bottom: 1px solid var(--border);
+      padding: 12px 20px;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+    }
+    .brand-title {
+      font-size: 19px;
+      font-weight: 800;
+      margin: 0;
+      letter-spacing: -0.02em;
+    }
+    .brand-sub {
+      color: var(--muted);
+      font-size: 13px;
+      margin: 2px 0 0;
+    }
+    .top-controls {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+    }
+    .badge {
+      display: inline-block;
+      padding: 3px 8px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 600;
+      border: 1px solid var(--border);
+      background: var(--panel-alt);
+    }
+    .badge-green { background: var(--green-bg); border-color: var(--green); color: #86efac; }
+    .badge-red { background: var(--red-bg); border-color: var(--red); color: #fca5a5; }
+    .badge-amber { background: var(--amber-bg); border-color: var(--amber); color: #fde68a; }
+    .badge-blue { background: rgba(56, 189, 248, 0.15); border-color: var(--accent); color: #bae6fd; }
+
+    .replay-banner {
+      background: rgba(56, 189, 248, 0.16);
+      border-bottom: 1px solid var(--accent);
+      padding: 8px 20px;
+      font-weight: 700;
+      color: #e0f2fe;
+      display: none;
+    }
+    .landing-strip {
+      background: var(--panel);
+      border-bottom: 1px solid var(--border);
+      padding: 10px 20px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+    .steps-banner {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 8px;
+      padding: 12px 20px;
+      background: #111827;
+      border-bottom: 1px solid var(--border);
+    }
+    .step-card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 8px 10px;
+    }
+    .step-card.active {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 1px var(--accent);
+    }
+    .step-card.done { border-color: var(--green); }
+    .step-card.failed { border-color: var(--red); }
+    .step-num { font-size: 11px; color: var(--muted); text-transform: uppercase; font-weight: 700; }
+    .step-title { font-weight: 700; margin: 2px 0; font-size: 13px; }
+    .step-status { font-size: 12px; color: var(--muted); }
+
+    .main-grid {
+      display: grid;
+      grid-template-columns: 1.15fr 0.85fr;
+      gap: 16px;
+      padding: 16px 20px;
+      max-width: 1680px;
+      margin: 0 auto;
+    }
+    @media (max-width: 1100px) {
+      .main-grid { grid-template-columns: 1fr; }
+      .steps-banner { grid-template-columns: 1fr; }
+    }
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 14px;
+      margin-bottom: 14px;
+    }
+    .panel h2 {
+      margin: 0 0 8px;
+      font-size: 15px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .verdict-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin: 10px 0;
+    }
+    .verdict-box {
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 10px;
+      background: var(--panel-alt);
+    }
+    .verdict-box.pass { border-color: var(--green); background: var(--green-bg); }
+    .verdict-box.fail { border-color: var(--red); background: var(--red-bg); }
+    .verdict-label { font-size: 11px; text-transform: uppercase; color: var(--muted); font-weight: 700; }
+    .verdict-val { font-size: 20px; font-weight: 800; margin: 4px 0; }
+
+    .group-row {
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 10px;
+      margin-bottom: 8px;
+      background: var(--panel-alt);
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+    }
+    .group-info { flex: 1 1 320px; }
+    .group-title { font-weight: 700; font-size: 14px; }
+    .group-meta { color: var(--muted); font-size: 12px; margin-top: 2px; }
+
+    .preview-frame-wrap {
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      overflow: hidden;
+      background: #fff;
+      height: 460px;
+    }
+    iframe#verifier-frame {
+      width: 100%;
+      height: 100%;
+      border: 0;
+    }
+    pre.diff-box, pre.stream-box {
+      background: #090d14;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 10px;
+      overflow-x: auto;
+      max-height: 260px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 12px;
+      color: #e2e8f0;
+      margin: 8px 0;
+      white-space: pre-wrap;
+    }
+    table.data-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+    table.data-table th, table.data-table td {
+      border: 1px solid var(--border);
+      padding: 6px 8px;
+      text-align: left;
+    }
+    table.data-table th { background: var(--panel-alt); }
+    .readout-card {
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 10px;
+      background: var(--panel-alt);
+      margin-top: 8px;
+    }
+    .cond-list {
+      list-style: none;
+      padding: 0;
+      margin: 8px 0 0;
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 6px;
+      font-size: 12px;
+    }
+    .cond-item {
+      padding: 5px 8px;
+      border-radius: 4px;
+      border: 1px solid var(--border);
+      background: #0f172a;
+    }
+    .token-input {
+      background: #090d14;
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 6px 10px;
+      border-radius: 6px;
+      width: 170px;
+    }
+  </style>
+</head>
+<body>
+
+  <div id="replay-banner" class="replay-banner"></div>
+
+  <header class="top-bar">
+    <div>
+      <h1 class="brand-title">SoundCheck</h1>
+      <p class="brand-sub">Accessibility fixes that can't fool the checker. Hear the difference.</p>
+    </div>
+    <div class="top-controls">
+      <span id="spend-badge" class="badge badge-blue">Spend: $0.0000 / $20.00 (save mode)</span>
+      <input id="demo-token-input" type="password" class="token-input" placeholder="Demo token (for live calls)">
+      <button id="btn-reset" class="btn" type="button">Reset Store (/reset)</button>
+    </div>
+  </header>
+
+  <section class="landing-strip">
+    <div>
+      <strong>First time here?</strong>
+      <button id="btn-watch-replay" class="btn btn-primary" type="button">Watch a recorded run</button>
+      <label class="btn" for="load-trace-file" style="cursor:pointer;">
+        Load trace JSON
+        <input id="load-trace-file" type="file" accept=".json" style="display:none;">
+      </label>
+      <span style="color:var(--muted); margin-left:8px;">
+        Live runs need a demo token to cap spend; ask at our table.
+      </span>
+    </div>
+    <div>
+      <span class="badge badge-amber">Planted defects — we built this store to break it</span>
+      <span id="headline-summary" class="badge badge-blue">axe violations 58 → 58, 0 items need human review</span>
+    </div>
+  </section>
+
+  <!-- Step k/5 Banner -->
+  <section class="steps-banner" aria-label="Verification workflow steps">
+    <div id="step-card-1" class="step-card active">
+      <div class="step-num">Step 1/5</div>
+      <div class="step-title">1 Scan every page</div>
+      <div id="step-status-1" class="step-status">waiting</div>
+    </div>
+    <div id="step-card-2" class="step-card">
+      <div class="step-num">Step 2/5</div>
+      <div class="step-title">2 Diagnose &amp; patch (Argon)</div>
+      <div id="step-status-2" class="step-status">waiting</div>
+    </div>
+    <div id="step-card-3" class="step-card">
+      <div class="step-num">Step 3/5</div>
+      <div class="step-title">3 Re-verify whole site</div>
+      <div id="step-status-3" class="step-status">waiting</div>
+    </div>
+    <div id="step-card-4" class="step-card">
+      <div class="step-num">Step 4/5</div>
+      <div class="step-title">4 Retry or hand off</div>
+      <div id="step-status-4" class="step-status">waiting</div>
+    </div>
+    <div id="step-card-5" class="step-card">
+      <div class="step-num">Step 5/5</div>
+      <div class="step-title">5 Approve &amp; hear it</div>
+      <div id="step-status-5" class="step-status">waiting</div>
+    </div>
+  </section>
+
+  <main class="main-grid">
+    <!-- Left Column: Controls, Demo Scenes, Groups, Approval, Readout, Scene D -->
+    <div>
+      <!-- On-Camera Demo Scenes Toolbar -->
+      <section class="panel">
+        <h2>
+          <span>Step 1 &amp; Demo Scenes (Baseline → Guard / Regression / Live Fix)</span>
+          <button id="btn-scan-baseline" class="btn btn-primary" type="button">1. Scan Baseline Store (4 pages)</button>
+        </h2>
+        <div style="display:flex; flex-wrap:wrap; gap:8px; margin-top:8px;">
+          <button id="btn-scene-a" class="btn btn-danger" type="button">Scene A: Inject a cheating patch</button>
+          <button id="btn-scene-a2" class="btn btn-danger" type="button">Scene A2: role="presentation" on content image</button>
+          <button id="btn-scene-b" class="btn btn-warn" type="button">Scene B: Try a naive per-violation fix (#767676)</button>
+          <button id="btn-run-all" class="btn btn-success" type="button">Run all groups</button>
+          <button id="btn-scene-d" class="btn" type="button">Scene D: Scan Real Template (Aviato)</button>
+        </div>
+      </section>
+
+      <!-- Side-by-Side Verification Verdict: axe / Guard / Hidden Check -->
+      <section class="panel">
+        <h2>
+          <span>Whole-Site Verification Verdict</span>
+          <span id="active-version-badge" class="badge">v0 (Baseline)</span>
+        </h2>
+        <div class="verdict-grid">
+          <div id="box-axe" class="verdict-box">
+            <div class="verdict-label">axe-core (4 pages)</div>
+            <div id="val-axe" class="verdict-val">—</div>
+            <div id="sub-axe" style="font-size:12px; color:var(--muted);">wcag2a/aa, wcag21a/aa</div>
+          </div>
+          <div id="box-guard" class="verdict-box">
+            <div class="verdict-label">Deterministic Guard</div>
+            <div id="val-guard" class="verdict-val">—</div>
+            <div id="sub-guard" style="font-size:12px; color:var(--muted);">Names, IDs, whitelist</div>
+          </div>
+          <div id="box-hidden" class="verdict-box">
+            <div class="verdict-label">Condition 6: No Harm (Hidden)</div>
+            <div id="val-hidden" class="verdict-val">—</div>
+            <div id="sub-hidden" style="font-size:12px; color:var(--amber); font-weight:600;">Patch model never saw this check</div>
+          </div>
+        </div>
+        <div id="rejection-reasons-box" style="display:none; padding:8px 10px; border-radius:6px; background:var(--red-bg); border:1px solid var(--red); color:#fecaca; font-size:12px; margin-top:8px;"></div>
+        <ul id="conditions-checklist" class="cond-list"></ul>
+      </section>
+
+      <!-- Six Root-Cause Groups -->
+      <section class="panel">
+        <h2>
+          <span>Root-Cause Violation Groups (One group at a time)</span>
+          <span style="font-size:12px; color:var(--muted);">Shared source patches fix all 4 pages at once</span>
+        </h2>
+        <div id="groups-container"></div>
+      </section>
+
+      <!-- Live Argon Stream & Approval Screen -->
+      <section class="panel">
+        <h2>
+          <span>Live Argon Stream &amp; Human Approval</span>
+          <span id="stream-model-badge" class="badge">Idle</span>
+        </h2>
+        <pre id="stream-log" class="stream-box">Click "1. Scan Baseline Store" or "Diagnose &amp; Patch (Argon)" on any root-cause group.</pre>
+
+        <div id="approval-panel" style="display:none; margin-top:10px; border-top:1px solid var(--border); padding-top:10px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+            <div>
+              <strong id="approval-title">Candidate Patch Ready</strong>
+              <span id="approval-counts" class="badge badge-blue" style="margin-left:6px;"></span>
+            </div>
+            <div style="display:flex; gap:8px;">
+              <a id="btn-download-diff" class="btn" href="#" download>Download .patch diff</a>
+              <button id="btn-approve-patch" class="btn btn-success" type="button">Approve &amp; Update /preview</button>
+            </div>
+          </div>
+          <div id="human-review-box" style="margin-top:8px; font-size:12px; color:#fde68a;"></div>
+          <pre id="diff-view" class="diff-box"></pre>
+        </div>
+
+        <!-- Alt Text Candidate Picker (1 of 3 per image) -->
+        <div id="alt-picker-panel" style="display:none; margin-top:10px; border-top:1px solid var(--border); padding-top:10px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+            <strong>Pick 1 of 3 Alt Candidates per Image (Drafted by MODEL_ASSIST)</strong>
+            <button id="btn-apply-alts" class="btn btn-primary" type="button">Apply Selected Alts &amp; Re-Verify</button>
+          </div>
+          <div id="alt-picker-list" style="max-height:260px; overflow-y:auto;"></div>
+        </div>
+      </section>
+
+      <!-- Scene C: Simulated Screen-Reader Readout (voiced by Gemini TTS) -->
+      <section class="panel">
+        <h2>
+          <span>Scene C: Simulated screen-reader readout (voiced by Gemini TTS)</span>
+          <span id="tts-model-badge" class="badge">gemini-3.8-flash-tts</span>
+        </h2>
+        <p style="margin:0 0 8px; font-size:12px; color:var(--muted);">
+          Simulated readout: accessible name, or the role when the name is empty.
+        </p>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+          <div class="readout-card">
+            <div style="font-size:11px; color:var(--muted); text-transform:uppercase; font-weight:700;">Before (Baseline v0)</div>
+            <div id="readout-before-text" style="font-weight:700; font-size:14px; margin:6px 0; color:#fca5a5;">button. link. button. image.</div>
+            <button id="btn-tts-before" class="btn" type="button">Play Before (Gemini TTS)</button>
+            <audio id="audio-before" controls style="width:100%; margin-top:8px; height:32px; display:none;"></audio>
+          </div>
+          <div class="readout-card">
+            <div style="font-size:11px; color:var(--muted); text-transform:uppercase; font-weight:700;">After (Current Preview)</div>
+            <div id="readout-after-text" style="font-weight:700; font-size:14px; margin:6px 0; color:#86efac;">Search. Cart. Menu. Navy wool coat.</div>
+            <button id="btn-tts-after" class="btn btn-primary" type="button">Play After (Gemini TTS)</button>
+            <audio id="audio-after" controls style="width:100%; margin-top:8px; height:32px; display:none;"></audio>
+          </div>
+        </div>
+      </section>
+
+      <!-- Scene D: Real Input (Themefisher Aviato) -->
+      <section id="scene-d-panel" class="panel" style="display:none;">
+        <h2>
+          <span>Scene D: Real Input — Themefisher Aviato Template (Scan + Diagnosis Only)</span>
+          <span class="badge badge-amber">Passes axe — flagged by SoundCheck</span>
+        </h2>
+        <div id="aviato-content" style="font-size:13px;"></div>
+      </section>
+    </div>
+
+    <!-- Right Column: Live Sandboxed Preview Iframe, Trace Panel & Results Table -->
+    <div>
+      <section class="panel">
+        <h2>
+          <span>Live Sandboxed Verifier Preview (<code>sandbox="allow-scripts"</code>)</span>
+          <div style="display:flex; gap:6px;">
+            <button class="btn page-tab" data-page="index.html" type="button">index.html</button>
+            <button class="btn page-tab" data-page="product.html" type="button">product.html</button>
+            <button class="btn page-tab" data-page="cart.html" type="button">cart.html</button>
+            <button class="btn page-tab" data-page="checkout.html" type="button">checkout.html</button>
+          </div>
+        </h2>
+        <div class="preview-frame-wrap">
+          <iframe id="verifier-frame" sandbox="allow-scripts" title="SoundCheck Store Preview"></iframe>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>
+          <span>Attempt Trace &amp; Implicit Cache Metrics</span>
+          <a id="btn-download-trace" class="btn" href="#" download>Download Trace JSON</a>
+        </h2>
+        <div style="overflow-x:auto;">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Group / Scene</th>
+                <th>Model</th>
+                <th>Violations</th>
+                <th>Guard</th>
+                <th>Hidden Check</th>
+                <th>Tokens / Cache % / Est. Cost</th>
+                <th>Time</th>
+              </tr>
+            </thead>
+            <tbody id="trace-tbody">
+              <tr><td colspan="8" style="color:var(--muted);">No attempts recorded yet.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>
+          <span>Run Summary &amp; Results Table</span>
+          <span id="results-run-label" class="badge">Not started</span>
+        </h2>
+        <div id="results-table-wrap">
+          <table class="data-table">
+            <tbody id="results-summary-tbody">
+              <tr><th>axe violations</th><td id="res-violations">58 → 58</td></tr>
+              <tr><th>Regressions caught</th><td id="res-regressions">0</td></tr>
+              <tr><th>Cheating patches rejected</th><td id="res-cheating">0</td></tr>
+              <tr><th>Handed to a human</th><td id="res-handoffs">0</td></tr>
+              <tr><th>Cumulative spend &amp; Cache hit %</th><td id="res-spend">$0.0000 · —</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <script>
+  (function() {
+    var state = null;
+    var currentPage = 'index.html';
+    var scanResolver = null;
+    var STORE_PAGES = ['index.html', 'product.html', 'cart.html', 'checkout.html'];
+    var AVIATO_PAGES = ['index.html', 'shop.html', 'product-single.html', 'cart.html', 'checkout.html'];
+
+    var frame = document.getElementById('verifier-frame');
+    var streamLog = document.getElementById('stream-log');
+
+    function getDemoToken() {
+      var el = document.getElementById('demo-token-input');
+      return el ? el.value.trim() : '';
+    }
+
+    function authHeaders(extra) {
+      var h = Object.assign({'Content-Type': 'application/json'}, extra || {});
+      var t = getDemoToken();
+      if (t) h['x-demo-token'] = t;
+      return h;
+    }
+
+    function setStepState(stepIdx, statusText, mode) {
+      for (var i = 1; i <= 5; i++) {
+        var card = document.getElementById('step-card-' + i);
+        if (i === stepIdx) {
+          card.className = 'step-card ' + (mode || 'active');
+          document.getElementById('step-status-' + i).textContent = statusText;
+        }
+      }
+    }
+
+    function logLine(msg) {
+      var ts = new Date().toLocaleTimeString('en-US', {hour12: false});
+      streamLog.textContent += '\n[' + ts + '] ' + msg;
+      streamLog.scrollTop = streamLog.scrollHeight;
+    }
+
+    // Listen to postMessage from sandboxed preview iframe (origin is "null")
+    window.addEventListener('message', function(ev) {
+      if (!frame || ev.source !== frame.contentWindow) return;
+      var data = ev.data;
+      if (!data || data.type !== 'soundcheck_scan_result') return;
+      if (!state || !state.run || !data.meta || data.meta.nonce !== state.run.nonce) return;
+      if (scanResolver) {
+        var r = scanResolver;
+        scanResolver = null;
+        r(data);
+      }
+    });
+
+    function scanSinglePageInIframe(url) {
+      return new Promise(function(resolve) {
+        scanResolver = resolve;
+        frame.src = url;
+      });
+    }
+
+    async function runFullSiteBrowserScan(version) {
+      var runId = state.run.run_id;
+      var nonce = state.run.nonce;
+      var stepNum = version === 0 ? 1 : 3;
+      var t0 = performance.now();
+      setStepState(stepNum, 'running (0.0 s, axe-core 4.14.0)', 'active');
+
+      var pagesResult = {};
+      for (var i = 0; i < STORE_PAGES.length; i++) {
+        var p = STORE_PAGES[i];
+        var elapsed = ((performance.now() - t0) / 1000).toFixed(1);
+        setStepState(stepNum, 'scanning ' + p + ' (' + elapsed + ' s)', 'active');
+        var url = '/preview/' + encodeURIComponent(runId) + '/v' + version + '/' + p + '?scan=1&nonce=' + encodeURIComponent(nonce) + '&_t=' + Date.now();
+        var res = await scanSinglePageInIframe(url);
+        pagesResult[p] = res;
+      }
+
+      // Return iframe to index.html clean view
+      frame.src = '/preview/' + encodeURIComponent(runId) + '/v' + version + '/' + currentPage + '?_t=' + Date.now();
+
+      var resp = await fetch('/api/run/' + encodeURIComponent(runId) + '/record-scan', {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify({ version: version, pages: pagesResult })
+      });
+      var updated = await resp.json();
+      state.run = updated.run;
+      var totalS = ((performance.now() - t0) / 1000).toFixed(1);
+      setStepState(stepNum, 'done (' + totalS + ' s)', 'done');
+      renderUI();
+      return state.run.versions[version];
+    }
+
+    function renderUI() {
+      if (!state || !state.run) return;
+      var run = state.run;
+      var curV = run.versions[run.current_version] || run.versions[0];
+      var baseV = run.versions[0];
+      var baseCount = (baseV && baseV.scan) ? baseV.scan.total_violations : 58;
+      var curCount = (curV && curV.scan) ? curV.scan.total_violations : baseCount;
+
+      var spend = state.spend ? state.spend.total_usd : 0;
+      document.getElementById('spend-badge').textContent =
+        'Spend: $' + Number(spend).toFixed(4) + ' / $20.00 (' + (run.cost_mode || 'save') + ' mode)';
+
+      document.getElementById('btn-download-trace').href = '/api/run/' + encodeURIComponent(run.run_id) + '/trace.json';
+      document.getElementById('results-run-label').textContent = 'Run ' + run.run_id + ' · recorded ' + run.created_at_kst;
+
+      // Count human review items across groups
+      var hrCount = 0;
+      Object.keys(run.groups || {}).forEach(function(gid) {
+        hrCount += ((run.groups[gid].human_review_items || []).length);
+      });
+      if (curV && curV.eval && curV.eval.guard && curV.eval.guard.human_review_items) {
+        hrCount = Math.max(hrCount, curV.eval.guard.human_review_items.length);
+      }
+
+      document.getElementById('headline-summary').textContent =
+        'axe violations ' + baseCount + ' → ' + curCount + ', ' + hrCount + ' items need human review';
+
+      document.getElementById('active-version-badge').textContent =
+        'v' + curV.version + ' — ' + curV.label + (curV.is_fallback ? ' [Fallback model: ' + curV.model + ']' : '');
+
+      // Verdict boxes
+      var boxAxe = document.getElementById('box-axe');
+      var boxGuard = document.getElementById('box-guard');
+      var boxHidden = document.getElementById('box-hidden');
+
+      if (curV.scan) {
+        document.getElementById('val-axe').textContent =
+          curV.version === 0 ? (curV.scan.total_violations + ' violations') : (baseCount + ' → ' + curV.scan.total_violations);
+        var rulesStr = Object.keys(curV.scan.by_rule || {}).map(function(k) {
+          return k + ': ' + curV.scan.by_rule[k];
+        }).join(' · ');
+        document.getElementById('sub-axe').textContent = rulesStr || '0 violations across 4 pages';
+        boxAxe.className = 'verdict-box ' + (curV.scan.total_violations < baseCount ? 'pass' : 'fail');
+      }
+
+      var rejBox = document.getElementById('rejection-reasons-box');
+      var condList = document.getElementById('conditions-checklist');
+      condList.innerHTML = '';
+
+      if (curV.eval) {
+        var ev = curV.eval;
+        var gPass = ev.guard && ev.guard.passed;
+        document.getElementById('val-guard').textContent = gPass ? 'PASSED' : 'REJECTED';
+        document.getElementById('sub-guard').textContent = gPass
+          ? 'All deterministic checks passed'
+          : (ev.guard.reasons[0] || 'Guard rejected patch');
+        boxGuard.className = 'verdict-box ' + (gPass ? 'pass' : 'fail');
+
+        var c6 = ev.conditions['6_no_harm_hidden'];
+        document.getElementById('val-hidden').textContent = c6.passed ? 'PASSED' : 'FAILED';
+        boxHidden.className = 'verdict-box ' + (c6.passed ? 'pass' : 'fail');
+
+        var reasons = [].concat(ev.guard.reasons || []);
+        if (!c6.passed) {
+          reasons = reasons.concat((c6.failures || []).map(function(f) {
+            return 'Hidden check failed (Patch model never saw this check): ' + f;
+          }));
+        }
+        if (!ev.conditions['2_zero_new_violations'].passed) {
+          var nvCount = ev.conditions['2_zero_new_violations'].new_violations.length;
+          reasons.push('Condition 2 failed: ' + nvCount + ' new violations introduced site-wide (regression caught)');
+        }
+        if (reasons.length) {
+          rejBox.style.display = 'block';
+          rejBox.innerHTML = '<strong>Patch Rejected:</strong><ul style="margin:4px 0 0; padding-left:18px;">' +
+            reasons.map(function(r) { return '<li>' + escapeHtml(r) + '</li>'; }).join('') + '</ul>';
+        } else {
+          rejBox.style.display = 'none';
+        }
+
+        var cItems = [
+          ['1. Targeted keys gone', ev.conditions['1_targeted_keys_gone'].passed],
+          ['2. Zero new violations site-wide', ev.conditions['2_zero_new_violations'].passed],
+          ['3. Zero serious/critical remaining/new', ev.conditions['3_zero_serious_critical'].passed],
+          ['4. Clean runtime (no window.onerror)', ev.conditions['4_clean_runtime'].passed],
+          ['5. Strictly below baseline (' + ev.baseline_total + ' → ' + ev.candidate_total + ')', ev.conditions['5_below_baseline'].passed],
+          ['6. No harm (Patch model never saw this check)', c6.passed]
+        ];
+        cItems.forEach(function(pair) {
+          var li = document.createElement('li');
+          li.className = 'cond-item';
+          li.innerHTML = (pair[1] ? '✅ ' : '❌ ') + escapeHtml(pair[0]);
+          condList.appendChild(li);
+        });
+      } else {
+        document.getElementById('val-guard').textContent = '—';
+        document.getElementById('val-hidden').textContent = '—';
+        boxGuard.className = 'verdict-box';
+        boxHidden.className = 'verdict-box';
+        rejBox.style.display = 'none';
+      }
+
+      // Update Readout (Scene C)
+      if (baseV && baseV.scan && baseV.scan.readout && baseV.scan.readout.transcript) {
+        document.getElementById('readout-before-text').textContent = baseV.scan.readout.transcript;
+      }
+      if (curV && curV.scan && curV.scan.readout && curV.scan.readout.transcript) {
+        document.getElementById('readout-after-text').textContent = curV.scan.readout.transcript;
+      }
+
+      // Render Approval Panel
+      var appPanel = document.getElementById('approval-panel');
+      if (curV.version > 0 && curV.diff) {
+        appPanel.style.display = 'block';
+        document.getElementById('approval-title').textContent =
+          curV.label + (curV.is_fallback ? ' [Fallback model: ' + curV.model + ']' : '');
+        var hItems = (curV.eval && curV.eval.guard && curV.eval.guard.human_review_items) || [];
+        document.getElementById('approval-counts').textContent =
+          'axe violations ' + baseCount + ' → ' + curCount + ', ' + hItems.length + ' items need human review';
+        document.getElementById('btn-download-diff').href =
+          '/api/run/' + encodeURIComponent(run.run_id) + '/diff/' + curV.version + '.patch';
+        document.getElementById('diff-view').textContent = curV.diff;
+        var canApprove = curV.eval && curV.eval.all_pass && !curV.approved;
+        var approveBtn = document.getElementById('btn-approve-patch');
+        approveBtn.disabled = !canApprove;
+        approveBtn.textContent = curV.approved
+          ? 'Approved & Active in /preview'
+          : (canApprove ? 'Approve & Update /preview' : 'Approval Blocked by Guard / Verifier');
+        var hrBox = document.getElementById('human-review-box');
+        hrBox.innerHTML = hItems.length
+          ? '<strong>Items needing human review:</strong> ' + hItems.map(escapeHtml).join(' · ')
+          : '';
+      } else {
+        appPanel.style.display = 'none';
+      }
+
+      // Render Groups
+      var gContainer = document.getElementById('groups-container');
+      gContainer.innerHTML = '';
+      Object.keys(run.groups).forEach(function(gid) {
+        var g = run.groups[gid];
+        var row = document.createElement('div');
+        row.className = 'group-row';
+        var statusBadge = '<span class="badge">' + escapeHtml(g.status) + '</span>';
+        if (g.status === 'approved') statusBadge = '<span class="badge badge-green">Approved</span>';
+        else if (g.status === 'pending_approval') statusBadge = '<span class="badge badge-blue">Verified — Ready to Approve</span>';
+        else if (g.status === 'handoff') statusBadge = '<span class="badge badge-red">Escalated to human: ' + escapeHtml(g.handoff_reason || 'handoff') + '</span>';
+        else if (g.status === 'retry_needed') statusBadge = '<span class="badge badge-amber">Retry needed (' + g.retries_used + '/2 used)</span>';
+
+        var modelBadge = g.last_model
+          ? '<span class="badge badge-blue">' + escapeHtml(g.is_fallback ? ('Fallback model: ' + g.last_model) : g.last_model) + '</span>'
+          : '';
+
+        var actionHtml = '';
+        if (g.engine === 'argon') {
+          actionHtml = '<button class="btn btn-primary btn-run-group" data-group="' + gid + '" data-retry="0" type="button">Diagnose &amp; Patch (Argon)</button>';
+          if (g.status === 'retry_needed' && g.retries_used < 2) {
+            actionHtml += ' <button class="btn btn-warn btn-run-group" data-group="' + gid + '" data-retry="1" type="button">Retry with Feedback</button>';
+          }
+        } else {
+          actionHtml = '<button id="btn-draft-alts" class="btn btn-primary" type="button">Draft 3 Alt Candidates (Flash)</button>';
+        }
+
+        row.innerHTML =
+          '<div class="group-info">' +
+            '<div class="group-title">' + escapeHtml(g.title) + ' ' + statusBadge + ' ' + modelBadge + '</div>' +
+            '<div class="group-meta">Rule: <code>' + escapeHtml(g.rule) + '</code> · Files: <code>' + escapeHtml(g.shared_files.join(', ')) + '</code> · Baseline nodes: ' + g.expected_count + '</div>' +
+            '<div class="group-meta">' + escapeHtml(g.description) + '</div>' +
+          '</div>' +
+          '<div>' + actionHtml + '</div>';
+        gContainer.appendChild(row);
+      });
+
+      // Bind group buttons
+      var gBtns = gContainer.querySelectorAll('.btn-run-group');
+      for (var b = 0; b < gBtns.length; b++) {
+        gBtns[b].addEventListener('click', function() {
+          var gid = this.getAttribute('data-group');
+          var isRetry = this.getAttribute('data-retry') === '1';
+          runArgonGroup(gid, isRetry);
+        });
+      }
+      var draftBtn = document.getElementById('btn-draft-alts');
+      if (draftBtn) {
+        draftBtn.addEventListener('click', function() {
+          draftAltCandidates();
+        });
+      }
+
+      // Render Alt Picker if candidates exist
+      var altKeys = Object.keys(run.alt_candidates || {});
+      var altPanel = document.getElementById('alt-picker-panel');
+      if (altKeys.length) {
+        altPanel.style.display = 'block';
+        var altList = document.getElementById('alt-picker-list');
+        altList.innerHTML = '';
+        altKeys.forEach(function(imgId) {
+          var item = run.alt_candidates[imgId];
+          var picked = run.picked_alts[imgId] || item.candidates[0];
+          var div = document.createElement('div');
+          div.style.padding = '6px 0';
+          div.style.borderBottom = '1px solid var(--border)';
+          var radios = item.candidates.map(function(cand, cIdx) {
+            var checked = cand === picked ? 'checked' : '';
+            return '<label style="margin-right:12px; cursor:pointer;">' +
+              '<input type="radio" name="alt_' + escapeHtml(imgId) + '" data-img="' + escapeHtml(imgId) + '" value="' + escapeHtml(cand) + '" ' + checked + '> ' +
+              escapeHtml(cand) + '</label>';
+          }).join('');
+          div.innerHTML = '<div><strong>#' + escapeHtml(imgId) + '</strong> <span style="color:var(--muted);">(' + escapeHtml(item.page) + ')</span> ' +
+            '<span class="badge">' + escapeHtml(item.is_fallback ? ('Fallback model: ' + item.model) : item.model) + '</span></div>' +
+            '<div style="margin-top:4px;">' + radios + '</div>';
+          altList.appendChild(div);
+        });
+      } else {
+        altPanel.style.display = 'none';
+      }
+
+      // Render Trace Table
+      var tbody = document.getElementById('trace-tbody');
+      if (!run.trace || !run.trace.length) {
+        tbody.innerHTML = '<tr><td colspan="8" style="color:var(--muted);">No attempts recorded yet.</td></tr>';
+      } else {
+        tbody.innerHTML = run.trace.map(function(t) {
+          var modelTxt = t.is_fallback ? ('Fallback model: ' + t.model) : (t.model || '—');
+          var vTxt = (t.violations_before != null ? t.violations_before : '—') + ' → ' + (t.violations_after != null ? t.violations_after : '…');
+          var gTxt = t.guard_passed ? '✅ Pass' : ('❌ Rejected (' + (t.guard_reasons && t.guard_reasons[0] ? t.guard_reasons[0] : '') + ')');
+          var hTxt = t.hidden_check_passed == null ? '—' : (t.hidden_check_passed ? '✅ Pass' : '❌ Failed (hidden)');
+          var cacheStr = t.cache_hit_pct != null ? (' · cache ' + t.cache_hit_pct + '%') : '';
+          var tokTxt = (t.tokens || 0) + ' tok' + cacheStr + ' · $' + Number(t.est_cost_usd || 0).toFixed(4);
+          return '<tr>' +
+            '<td>' + t.attempt + '</td>' +
+            '<td>' + escapeHtml(t.group_id) + ' (v' + t.version + ')</td>' +
+            '<td>' + escapeHtml(modelTxt) + '</td>' +
+            '<td>' + escapeHtml(vTxt) + '</td>' +
+            '<td>' + escapeHtml(gTxt) + '</td>' +
+            '<td>' + escapeHtml(hTxt) + '</td>' +
+            '<td>' + escapeHtml(tokTxt) + '</td>' +
+            '<td>' + Number(t.elapsed_s || 0).toFixed(1) + 's</td>' +
+          '</tr>';
+        }).join('');
+      }
+
+      // Render Results Summary Table
+      document.getElementById('res-violations').textContent =
+        'axe violations ' + baseCount + ' → ' + curCount + ', ' + hrCount + ' items need human review';
+      var regList = run.regressions_caught || [];
+      document.getElementById('res-regressions').textContent = regList.length
+        ? (regList.length + ' (' + regList.map(function(r) { return r.source; }).join(', ') + ')')
+        : '0';
+      document.getElementById('res-cheating').textContent = String(run.cheating_patches_rejected || 0);
+      document.getElementById('res-handoffs').textContent = String(run.handoffs_count || 0);
+      var maxCache = '—';
+      (run.trace || []).forEach(function(t) {
+        if (t.cache_hit_pct != null) maxCache = t.cache_hit_pct + '%';
+      });
+      document.getElementById('res-spend').textContent =
+        '$' + Number(spend).toFixed(4) + ' · Argon cache hit: ' + maxCache;
+    }
+
+    function escapeHtml(s) {
+      return String(s == null ? '' : s)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    async function runArgonGroup(groupId, isRetry) {
+      if (!state || !state.run) return;
+      if (!state.run.versions[0].scan) {
+        await runFullSiteBrowserScan(0);
+      }
+      var runId = state.run.run_id;
+      var token = getDemoToken();
+      var url = '/api/run/' + encodeURIComponent(runId) + '/group/' + encodeURIComponent(groupId) + '/stream?retry=' + (isRetry ? 1 : 0);
+      if (token) url += '&token=' + encodeURIComponent(token);
+
+      setStepState(2, 'running (0.0 s, ' + (state.models ? state.models.FIX : 'gemini-4-argon') + ')', 'active');
+      logLine('Starting Argon diagnose+patch for group "' + groupId + '"...');
+
+      return new Promise(function(resolve) {
+        var es = new EventSource(url);
+        es.onmessage = async function(ev) {
+          var data = JSON.parse(ev.data);
+          if (data.type === 'model_start') {
+            var badge = data.is_fallback ? ('Fallback model: ' + data.model) : data.model;
+            document.getElementById('stream-model-badge').textContent = badge + ' (' + data.thinking_level + ')';
+            setStepState(2, 'running (' + data.elapsed_s + ' s, ' + badge + ')', 'active');
+          } else if (data.type === 'thinking' || data.type === 'thinking_summary') {
+            setStepState(2, 'running (' + data.elapsed_s + ' s, ' + data.model + ')', 'active');
+            logLine('[' + data.model + '] ' + data.text);
+          } else if (data.type === 'agent_update') {
+            logLine('[' + data.model + ' update] ' + data.message);
+          } else if (data.type === 'diagnosis') {
+            logLine('[' + data.model + ' diagnosis] ' + data.diagnosis.root_cause);
+          } else if (data.type === 'patch_proposed') {
+            logLine('[' + data.model + ' propose_patch] ' + data.summary + ' (' + (data.files || []).join(', ') + ')');
+          } else if (data.type === 'handoff') {
+            es.close();
+            setStepState(4, data.reason, 'failed');
+            logLine(data.reason);
+            await refreshState();
+            resolve();
+          } else if (data.type === 'cutoff_replay') {
+            es.close();
+            logLine('Round cutoff exceeded — switching to recorded replay.');
+            await loadRecordedReplay('default');
+            resolve();
+          } else if (data.type === 'candidate_ready') {
+            es.close();
+            state.run = data.run;
+            setStepState(2, 'done (' + data.elapsed_s + ' s, ' + data.model + ')', 'done');
+            if (data.can_render) {
+              var vScan = await runFullSiteBrowserScan(data.version);
+              if (vScan && vScan.eval && vScan.eval.all_pass) {
+                setStepState(5, 'ready for human approval', 'active');
+              } else {
+                var gState = state.run.groups[groupId];
+                if (gState && gState.status === 'handoff') {
+                  setStepState(4, 'Escalated to human: ' + gState.handoff_reason, 'failed');
+                } else {
+                  setStepState(4, 'Retry available', 'active');
+                }
+              }
+            } else {
+              setStepState(4, 'Security Guard rejected patch', 'failed');
+              renderUI();
+            }
+            resolve();
+          }
+        };
+        es.onerror = function() {
+          es.close();
+          setStepState(2, 'connection closed or demo token missing', 'failed');
+          logLine('Stream closed or unauthorized (check demo token if required).');
+          resolve();
+        };
+      });
+    }
+
+    async function draftAltCandidates() {
+      var runId = state.run.run_id;
+      logLine('Drafting 3 alt text candidates per image in parallel with MODEL_ASSIST...');
+      setStepState(2, 'drafting alt candidates (' + (state.models ? state.models.ASSIST : 'gemini-3.8-flash') + ')', 'active');
+      var resp = await fetch('/api/run/' + encodeURIComponent(runId) + '/draft-alts', {
+        method: 'POST',
+        headers: authHeaders()
+      });
+      if (!resp.ok) {
+        logLine('Failed to draft alts: HTTP ' + resp.status);
+        return;
+      }
+      var data = await resp.json();
+      state.run = data.run;
+      setStepState(2, '3 candidates per image ready', 'done');
+      renderUI();
+    }
+
+    async function applyPickedAlts() {
+      var runId = state.run.run_id;
+      var picks = {};
+      var checked = document.querySelectorAll('#alt-picker-list input[type="radio"]:checked');
+      for (var i = 0; i < checked.length; i++) {
+        picks[checked[i].getAttribute('data-img')] = checked[i].value;
+      }
+      var resp = await fetch('/api/run/' + encodeURIComponent(runId) + '/apply-alts', {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify({ picks: picks })
+      });
+      var data = await resp.json();
+      state.run = data.run;
+      await runFullSiteBrowserScan(data.version);
+      setStepState(5, 'ready for human approval', 'active');
+    }
+
+    async function runPrebuiltScene(sceneName) {
+      if (!state.run.versions[0].scan) {
+        await runFullSiteBrowserScan(0);
+      }
+      var runId = state.run.run_id;
+      logLine('Applying ' + sceneName + '...');
+      var resp = await fetch('/api/run/' + encodeURIComponent(runId) + '/scene/' + encodeURIComponent(sceneName), {
+        method: 'POST',
+        headers: authHeaders()
+      });
+      var data = await resp.json();
+      state.run = data.run;
+      await runFullSiteBrowserScan(data.version);
+    }
+
+    async function runAllGroupsSequential() {
+      if (!state.run.versions[0].scan) {
+        await runFullSiteBrowserScan(0);
+      }
+      var order = ['tokens', 'header', 'link', 'form', 'lang'];
+      for (var i = 0; i < order.length; i++) {
+        var gid = order[i];
+        var g = state.run.groups[gid];
+        if (g.status === 'approved') continue;
+        await runArgonGroup(gid, false);
+        var updatedG = state.run.groups[gid];
+        if (updatedG.status === 'retry_needed' && updatedG.retries_used < 2) {
+          await runArgonGroup(gid, true);
+          updatedG = state.run.groups[gid];
+        }
+        if (updatedG.status === 'pending_approval' && updatedG.candidate_version) {
+          var appResp = await fetch('/api/run/' + encodeURIComponent(state.run.run_id) + '/approve/' + updatedG.candidate_version, {
+            method: 'POST',
+            headers: authHeaders()
+          });
+          if (appResp.ok) {
+            var appData = await appResp.json();
+            state.run = appData.run;
+            renderUI();
+          }
+        }
+      }
+      // Check image-alt
+      var pickedKeys = Object.keys(state.run.picked_alts || {});
+      if (!pickedKeys.length) {
+        logLine('Waiting for alt approval — drafting 3 candidates per image now.');
+        setStepState(5, 'Waiting for alt approval', 'active');
+        await draftAltCandidates();
+      } else if (state.run.groups['image-alt'].status !== 'approved') {
+        await applyPickedAlts();
+      }
+    }
+
+    async function playTts(which) {
+      var runId = state.run.run_id;
+      var txt = document.getElementById(which === 'before' ? 'readout-before-text' : 'readout-after-text').textContent.trim();
+      var audioEl = document.getElementById(which === 'before' ? 'audio-before' : 'audio-after');
+      if (state.run.tts_cache && state.run.tts_cache[txt] && state.run.tts_cache[txt].audio_data_url) {
+        audioEl.src = state.run.tts_cache[txt].audio_data_url;
+        audioEl.style.display = 'block';
+        audioEl.play();
+        return;
+      }
+      logLine('Synthesizing readout with Gemini TTS: "' + txt + '"');
+      var resp = await fetch('/api/run/' + encodeURIComponent(runId) + '/tts', {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify({ text: txt })
+      });
+      if (!resp.ok) {
+        logLine('TTS call failed (check demo token).');
+        return;
+      }
+      var data = await resp.json();
+      state.run = data.run;
+      if (data.tts && data.tts.audio_data_url) {
+        audioEl.src = data.tts.audio_data_url;
+        audioEl.style.display = 'block';
+        audioEl.play();
+      }
+    }
+
+    async function runSceneDAviato() {
+      var panel = document.getElementById('scene-d-panel');
+      var content = document.getElementById('aviato-content');
+      panel.style.display = 'block';
+      content.innerHTML = 'Scanning 5 Themefisher Aviato pages in sandboxed iframe with axe-core...';
+
+      var nonce = state.run.nonce;
+      var totalViolations = 0;
+      var byRule = {};
+      var incompleteItems = [];
+      var pageWarnings = [];
+
+      for (var i = 0; i < AVIATO_PAGES.length; i++) {
+        var p = AVIATO_PAGES[i];
+        var url = '/aviato-preview/' + p + '?scan=1&nonce=' + encodeURIComponent(nonce) + '&_t=' + Date.now();
+        var res = await scanSinglePageInIframe(url);
+        (res.violations || []).forEach(function(v) {
+          totalViolations++;
+          byRule[v.rule] = (byRule[v.rule] || 0) + 1;
+        });
+        (res.incomplete || []).forEach(function(inc) {
+          incompleteItems.push(p + ': ' + inc.rule + ' (' + inc.count + ' nodes)');
+        });
+        if (res.runtime_errors && res.runtime_errors.length) {
+          pageWarnings.push(p + ' warning: ' + res.runtime_errors.join(', '));
+        }
+      }
+
+      // Restore store preview
+      frame.src = '/preview/' + encodeURIComponent(state.run.run_id) + '/v' + state.run.current_version + '/' + currentPage;
+
+      content.innerHTML = 'Running SoundCheck deterministic checks + Gemini 4 Argon root-cause diagnosis on Aviato...';
+      var resp = await fetch('/api/run/' + encodeURIComponent(state.run.run_id) + '/aviato-diagnose', {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify({
+          axe_summary: {
+            pages_scanned: AVIATO_PAGES,
+            total_violations: totalViolations,
+            by_rule: byRule,
+            incomplete: incompleteItems.slice(0, 10),
+            warnings: pageWarnings
+          }
+        })
+      });
+      var data = await resp.json();
+      state.run = data.run;
+      renderSceneDResult(data);
+    }
+
+    function renderSceneDResult(data) {
+      var panel = document.getElementById('scene-d-panel');
+      var content = document.getElementById('aviato-content');
+      panel.style.display = 'block';
+      var findings = data.findings || [];
+      var diag = (data.diagnosis && data.diagnosis.diagnosis) || {};
+      var model = (data.diagnosis && data.diagnosis.model) || 'gemini-4-argon';
+      var scan = state.run.aviato_scan || {};
+
+      var findingsHtml = findings.map(function(f) {
+        return '<div class="readout-card" style="margin-bottom:8px;">' +
+          '<div><span class="badge badge-amber">' + escapeHtml(f.badge) + '</span> <strong>' + escapeHtml(f.title) + '</strong> (' + f.count + ' hits)</div>' +
+          '<div style="color:var(--muted); font-size:12px; margin-top:4px;">' + escapeHtml(f.explanation) + '</div>' +
+          '<div style="font-family:monospace; font-size:11px; margin-top:4px; color:#cbd5e1;">' + (f.examples || []).map(escapeHtml).join('<br>') + '</div>' +
+        '</div>';
+      }).join('');
+
+      var causesHtml = (diag.shared_root_causes || []).map(function(c) {
+        return '<li><strong>' + escapeHtml(c.title || '') + '</strong>: ' + escapeHtml(c.fix_strategy || c.soundcheck_catch || '') + '</li>';
+      }).join('');
+
+      content.innerHTML =
+        '<div style="margin-bottom:8px;"><strong>axe-core across 5 Aviato pages:</strong> ' + (scan.total_violations || 0) + ' violations · ' +
+        'Incomplete items (listed separately): ' + ((scan.incomplete || []).length) + ' · Model: <span class="badge badge-blue">' + escapeHtml(model) + '</span></div>' +
+        findingsHtml +
+        '<div class="readout-card" style="border-color:var(--accent);">' +
+          '<div><strong>Argon Root-Cause Diagnosis:</strong> ' + escapeHtml(diag.headline || '') + '</div>' +
+          (causesHtml ? ('<ul style="margin:6px 0; padding-left:18px;">' + causesHtml + '</ul>') : '') +
+          '<div style="color:#bae6fd; font-size:12px;">' + escapeHtml(diag.why_axe_alone_is_not_enough || '') + '</div>' +
+        '</div>';
+    }
+
+    async function loadRecordedReplay(replayId) {
+      var target = replayId;
+      if (!target || target === 'default') {
+        target = (state && state.available_replays && state.available_replays[0]) || 'demo-run';
+      }
+      var resp = await fetch('/api/replays/' + encodeURIComponent(target));
+      if (!resp.ok) {
+        logLine('No committed replay file found under replays/ yet. Use "Download Trace JSON" to save one.');
+        return;
+      }
+      var payload = await resp.json();
+      applyReplayPayload(payload);
+    }
+
+    function applyReplayPayload(payload) {
+      if (!payload || !payload.run) return;
+      state.run = payload.run;
+      var rb = document.getElementById('replay-banner');
+      rb.style.display = 'block';
+      rb.textContent = 'Replaying recorded run (' + (payload.recorded_at_kst || state.run.created_at_kst || 'recorded') + ') — Run ID: ' + state.run.run_id;
+      frame.src = '/preview/' + encodeURIComponent(state.run.run_id) + '/v' + state.run.current_version + '/' + currentPage;
+      if (state.run.aviato_findings && state.run.aviato_diagnosis) {
+        renderSceneDResult({
+          findings: state.run.aviato_findings,
+          diagnosis: state.run.aviato_diagnosis
+        });
+      }
+      renderUI();
+    }
+
+    async function refreshState() {
+      var resp = await fetch('/api/state');
+      state = await resp.json();
+      renderUI();
+    }
+
+    // Event bindings
+    document.getElementById('btn-scan-baseline').addEventListener('click', function() {
+      runFullSiteBrowserScan(0);
+    });
+    document.getElementById('btn-scene-a').addEventListener('click', function() {
+      runPrebuiltScene('scene_a');
+    });
+    document.getElementById('btn-scene-a2').addEventListener('click', function() {
+      runPrebuiltScene('scene_a2');
+    });
+    document.getElementById('btn-scene-b').addEventListener('click', function() {
+      runPrebuiltScene('scene_b');
+    });
+    document.getElementById('btn-run-all').addEventListener('click', function() {
+      runAllGroupsSequential();
+    });
+    document.getElementById('btn-scene-d').addEventListener('click', function() {
+      runSceneDAviato();
+    });
+    document.getElementById('btn-apply-alts').addEventListener('click', function() {
+      applyPickedAlts();
+    });
+    document.getElementById('btn-approve-patch').addEventListener('click', async function() {
+      var curV = state.run.current_version;
+      var resp = await fetch('/api/run/' + encodeURIComponent(state.run.run_id) + '/approve/' + curV, {
+        method: 'POST',
+        headers: authHeaders()
+      });
+      if (resp.ok) {
+        var data = await resp.json();
+        state.run = data.run;
+        setStepState(5, 'Approved & active in /preview', 'done');
+        frame.src = '/preview/' + encodeURIComponent(state.run.run_id) + '/v' + state.run.current_version + '/' + currentPage + '?_t=' + Date.now();
+        renderUI();
+      }
+    });
+    document.getElementById('btn-reset').addEventListener('click', async function() {
+      var resp = await fetch('/reset', { method: 'POST' });
+      var data = await resp.json();
+      state.run = data.run;
+      document.getElementById('replay-banner').style.display = 'none';
+      frame.src = '/preview/' + encodeURIComponent(state.run.run_id) + '/v0/' + currentPage + '?_t=' + Date.now();
+      renderUI();
+    });
+    document.getElementById('btn-tts-before').addEventListener('click', function() {
+      playTts('before');
+    });
+    document.getElementById('btn-tts-after').addEventListener('click', function() {
+      playTts('after');
+    });
+    document.getElementById('btn-watch-replay').addEventListener('click', function() {
+      loadRecordedReplay('default');
+    });
+    document.getElementById('load-trace-file').addEventListener('change', function(ev) {
+      var file = ev.target.files && ev.target.files[0];
+      if (!file) return;
+      var reader = new FileReader();
+      reader.onload = async function() {
+        var payload = JSON.parse(String(reader.result));
+        var resp = await fetch('/api/replays/load', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify(payload)
+        });
+        var res = await resp.json();
+        applyReplayPayload(res.replay);
+      };
+      reader.readAsText(file);
+    });
+
+    var pageTabs = document.querySelectorAll('.page-tab');
+    for (var t = 0; t < pageTabs.length; t++) {
+      pageTabs[t].addEventListener('click', function() {
+        currentPage = this.getAttribute('data-page');
+        if (state && state.run) {
+          frame.src = '/preview/' + encodeURIComponent(state.run.run_id) + '/v' + state.run.current_version + '/' + currentPage;
+        }
+      });
+    }
+
+    // Initialize
+    (async function init() {
+      await refreshState();
+      var params = new URLSearchParams(window.location.search);
+      var replayParam = params.get('replay');
+      var autorun = params.get('autorun');
+      if (replayParam) {
+        await loadRecordedReplay(replayParam);
+      } else if (autorun === 'baseline') {
+        await runFullSiteBrowserScan(0);
+      } else if (autorun === 'scene_a') {
+        await runPrebuiltScene('scene_a');
+      } else if (autorun === 'scene_b') {
+        await runPrebuiltScene('scene_b');
+      } else if (state && state.run) {
+        frame.src = '/preview/' + encodeURIComponent(state.run.run_id) + '/v0/index.html';
+      }
+    })();
+  })();
+  </script>
+</body>
+</html>
