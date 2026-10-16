@@ -1,0 +1,1 @@
+- `gcplab.me` participant account cannot call project-level `setIamPolicy`, but default compute SA (`129595935968-compute@developer.gserviceaccount.com`) already has `roles/editor` and resource-level `gcloud secrets add-iam-policy-binding` works.
