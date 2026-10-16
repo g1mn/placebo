@@ -1,0 +1,58 @@
+<!-- include: layout-top.html -->
+  <title>Shopping bag — Bukchon Wool</title>
+</head>
+<body>
+<!-- include: header.html -->
+<main id="main">
+  <div class="container">
+    <h1>Your shopping bag</h1>
+    <form id="cart-form" action="#">
+      <ul class="cart-list">
+        <li class="cart-line">
+          <img id="cart-line-1-img" src="img/navy-wool-coat.jpg" width="160" height="200">
+          <div class="cart-line-details">
+            <h2><a id="cart-line-1-link" class="card-link" href="product.html">Navy wool coat</a></h2>
+            <p id="cart-line-1-meta" class="line-meta">Size M · Navy</p>
+            <p class="price">KRW 289,000</p>
+          </div>
+          <div class="cart-line-actions">
+            <div class="form-row">
+              <label for="cart-line-1-qty">Quantity for Navy wool coat</label>
+              <input id="cart-line-1-qty" type="number" name="qty-1" value="1" min="1" max="10">
+            </div>
+            <button id="cart-line-1-remove" type="submit" class="btn-secondary">Remove</button>
+          </div>
+        </li>
+        <li class="cart-line">
+          <img id="cart-line-2-img" src="img/oatmeal-knit-scarf.jpg" width="160" height="200">
+          <div class="cart-line-details">
+            <h2><a id="cart-line-2-link" class="card-link" href="product.html">Oatmeal knit scarf</a></h2>
+            <p id="cart-line-2-meta" class="line-meta">One size · Oatmeal</p>
+            <p class="price">KRW 59,000</p>
+          </div>
+          <div class="cart-line-actions">
+            <div class="form-row">
+              <label for="cart-line-2-qty">Quantity for Oatmeal knit scarf</label>
+              <input id="cart-line-2-qty" type="number" name="qty-2" value="1" min="1" max="10">
+            </div>
+            <button id="cart-line-2-remove" type="submit" class="btn-secondary">Remove</button>
+          </div>
+        </li>
+      </ul>
+      <p id="cart-form-status" class="form-status" hidden></p>
+    </form>
+
+    <div class="cart-summary">
+      <p class="subtotal">Subtotal: <strong>KRW 348,000</strong></p>
+      <p id="cart-taxes-note" class="cart-note">Taxes calculated at checkout.</p>
+      <div class="cart-cta">
+        <a id="cart-checkout-link" class="btn-link" href="checkout.html">Checkout</a>
+      </div>
+    </div>
+  </div>
+</main>
+<!-- include: newsletter.html -->
+<!-- include: footer.html -->
+<script src="js/main.js"></script>
+</body>
+</html>
