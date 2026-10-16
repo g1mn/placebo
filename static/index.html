@@ -368,6 +368,7 @@
           <span>Whole-Site Verification Verdict</span>
           <span id="active-version-badge" class="badge">v0 (Baseline)</span>
         </h2>
+        <div id="version-selector-bar" style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:10px;"></div>
         <div class="verdict-grid">
           <div id="box-axe" class="verdict-box">
             <div class="verdict-label">axe-core (4 pages)</div>
@@ -621,11 +622,34 @@
       return state.run.versions[version];
     }
 
+    var isReplayMode = false;
+
+    function selectVersion(vNum) {
+      if (!state || !state.run || !state.run.versions) return;
+      var vObj = state.run.versions[vNum] || state.run.versions[String(vNum)];
+      if (!vObj) return;
+      state.run.current_version = Number(vNum);
+      frame.src = '/preview/' + encodeURIComponent(state.run.run_id) + '/v' + vNum + '/' + currentPage;
+      var diag = vObj.diagnosis;
+      if (diag && (diag.root_cause_explanation || diag.fix_strategy)) {
+        streamLog.textContent =
+          '=== v' + vNum + ' · ' + vObj.label + ' ===\n' +
+          'Root cause: ' + (diag.root_cause_explanation || '') + '\n' +
+          'Strategy: ' + (diag.fix_strategy || '');
+      } else if (vObj.eval && vObj.eval.verdict === 'REJECTED') {
+        streamLog.textContent =
+          '=== v' + vNum + ' · ' + vObj.label + ' (REJECTED) ===\n' +
+          'axe-core count: ' + (vObj.scan ? vObj.scan.total_violations : '—') + '\n' +
+          'Verdict: REJECTED by SoundCheck verification.';
+      }
+      renderUI();
+    }
+
     function renderUI() {
       if (!state || !state.run) return;
       var run = state.run;
-      var curV = run.versions[run.current_version] || run.versions[0];
-      var baseV = run.versions[0];
+      var curV = run.versions[run.current_version] || run.versions[String(run.current_version)] || run.versions[0] || run.versions['0'];
+      var baseV = run.versions[0] || run.versions['0'];
       var baseCount = (baseV && baseV.scan) ? baseV.scan.total_violations : 58;
       var curCount = (curV && curV.scan) ? curV.scan.total_violations : baseCount;
 
@@ -635,6 +659,37 @@
 
       document.getElementById('btn-download-trace').href = '/api/run/' + encodeURIComponent(run.run_id) + '/trace.json';
       document.getElementById('results-run-label').textContent = 'Run ' + run.run_id + ' · recorded ' + run.created_at_kst;
+
+      // Render Version Selector Bar
+      var vBar = document.getElementById('version-selector-bar');
+      if (vBar) {
+        vBar.innerHTML = '';
+        var vKeys = Object.keys(run.versions || {}).map(Number).sort(function(a, b) { return a - b; });
+        vKeys.forEach(function(vk) {
+          var vo = run.versions[vk] || run.versions[String(vk)];
+          if (!vo) return;
+          var btn = document.createElement('button');
+          btn.type = 'button';
+          var isCur = Number(run.current_version) === vk;
+          var vCount = (vo.scan && vo.scan.total_violations != null) ? vo.scan.total_violations : '…';
+          var statusIcon = '';
+          if (vk > 0 && vo.eval) {
+            statusIcon = vo.eval.all_pass ? ' ✅' : ' ❌';
+          }
+          var shortLbl = 'v' + vk;
+          if (vk === 0) shortLbl = 'v0 Baseline';
+          else if (vo.source === 'scene_a') shortLbl = 'v' + vk + ' Scene A (Cheating)';
+          else if (vo.source === 'scene_a2') shortLbl = 'v' + vk + ' Scene A2';
+          else if (vo.source === 'scene_b') shortLbl = 'v' + vk + ' Scene B (Naive #767676)';
+          else if (vo.source && vo.source.indexOf('group:') === 0) shortLbl = 'v' + vk + ' ' + vo.source.split(':')[1];
+          btn.className = 'btn ' + (isCur ? 'btn-primary' : '');
+          btn.style.padding = '4px 8px';
+          btn.style.fontSize = '11px';
+          btn.textContent = shortLbl + ' (' + vCount + ')' + statusIcon;
+          btn.addEventListener('click', function() { selectVersion(vk); });
+          vBar.appendChild(btn);
+        });
+      }
 
       // Count human review items across groups
       var hrCount = 0;
@@ -662,8 +717,15 @@
         var rulesStr = Object.keys(curV.scan.by_rule || {}).map(function(k) {
           return k + ': ' + curV.scan.by_rule[k];
         }).join(' · ');
-        document.getElementById('sub-axe').textContent = rulesStr || '0 violations across 4 pages';
-        boxAxe.className = 'verdict-box ' + (curV.scan.total_violations < baseCount ? 'pass' : 'fail');
+        var cond2Failed = curV.eval && curV.eval.conditions && !curV.eval.conditions['2_zero_new_violations'].passed;
+        if (cond2Failed) {
+          var newCnt = curV.eval.conditions['2_zero_new_violations'].new_violations.length;
+          document.getElementById('sub-axe').textContent = newCnt + ' new header/footer failures! (' + rulesStr + ')';
+          boxAxe.className = 'verdict-box fail';
+        } else {
+          document.getElementById('sub-axe').textContent = rulesStr || '0 violations across 4 pages';
+          boxAxe.className = 'verdict-box ' + (curV.scan.total_violations < baseCount ? 'pass' : 'fail');
+        }
       }
 
       var rejBox = document.getElementById('rejection-reasons-box');
@@ -801,12 +863,20 @@
         gBtns[b].addEventListener('click', function() {
           var gid = this.getAttribute('data-group');
           var isRetry = this.getAttribute('data-retry') === '1';
+          if (isReplayMode && !getDemoToken()) {
+            var gv = findVersionBySource('group:' + gid);
+            if (gv != null) { selectVersion(gv); return; }
+          }
           runArgonGroup(gid, isRetry);
         });
       }
       var draftBtn = document.getElementById('btn-draft-alts');
       if (draftBtn) {
         draftBtn.addEventListener('click', function() {
+          if (isReplayMode && !getDemoToken()) {
+            var va = findVersionBySource('group:image-alt');
+            if (va != null) { selectVersion(va); return; }
+          }
           draftAltCandidates();
         });
       }
@@ -851,9 +921,9 @@
           var hTxt = t.hidden_check_passed == null ? '—' : (t.hidden_check_passed ? '✅ Pass' : '❌ Failed (hidden)');
           var cacheStr = t.cache_hit_pct != null ? (' · cache ' + t.cache_hit_pct + '%') : '';
           var tokTxt = (t.tokens || 0) + ' tok' + cacheStr + ' · $' + Number(t.est_cost_usd || 0).toFixed(4);
-          return '<tr>' +
+          return '<tr data-ver="' + t.version + '" style="cursor:pointer;" title="Click to inspect v' + t.version + '">' +
             '<td>' + t.attempt + '</td>' +
-            '<td>' + escapeHtml(t.group_id) + ' (v' + t.version + ')</td>' +
+            '<td><strong>' + escapeHtml(t.group_id) + ' (v' + t.version + ')</strong></td>' +
             '<td>' + escapeHtml(modelTxt) + '</td>' +
             '<td>' + escapeHtml(vTxt) + '</td>' +
             '<td>' + escapeHtml(gTxt) + '</td>' +
@@ -862,6 +932,12 @@
             '<td>' + Number(t.elapsed_s || 0).toFixed(1) + 's</td>' +
           '</tr>';
         }).join('');
+        var trRows = tbody.querySelectorAll('tr[data-ver]');
+        for (var rIdx = 0; rIdx < trRows.length; rIdx++) {
+          trRows[rIdx].addEventListener('click', function() {
+            selectVersion(Number(this.getAttribute('data-ver')));
+          });
+        }
       }
 
       // Render Results Summary Table
@@ -1176,12 +1252,31 @@
       applyReplayPayload(payload);
     }
 
+    function findVersionBySource(srcPrefix) {
+      if (!state || !state.run || !state.run.versions) return null;
+      var vKeys = Object.keys(state.run.versions).map(Number).sort(function(a, b) { return a - b; });
+      for (var i = 0; i < vKeys.length; i++) {
+        var vo = state.run.versions[vKeys[i]] || state.run.versions[String(vKeys[i])];
+        if (vo && vo.source && vo.source.indexOf(srcPrefix) === 0) return vKeys[i];
+      }
+      return null;
+    }
+
     function applyReplayPayload(payload) {
       if (!payload || !payload.run) return;
+      isReplayMode = true;
       state.run = payload.run;
+      if (payload.spend) {
+        state.spend = payload.spend;
+      }
       var rb = document.getElementById('replay-banner');
       rb.style.display = 'block';
-      rb.textContent = 'Replaying recorded run (' + (payload.recorded_at_kst || state.run.created_at_kst || 'recorded') + ') — Run ID: ' + state.run.run_id;
+      rb.textContent = 'Replaying recorded run (' + (payload.recorded_at_kst || state.run.created_at_kst || 'recorded') + ') — Run ID: ' + state.run.run_id + ' · Click any version pill (v0–v8) or scene button to inspect.';
+      setStepState(1, 'done (58 baseline violations)', 'done');
+      setStepState(2, 'done (gemini-4-argon + gemini-3.8-flash)', 'done');
+      setStepState(3, 'done (58 → 0 violations)', 'done');
+      setStepState(4, 'done (0 handoffs)', 'done');
+      setStepState(5, 'Approved & active in /preview', 'done');
       frame.src = '/preview/' + encodeURIComponent(state.run.run_id) + '/v' + state.run.current_version + '/' + currentPage;
       if (state.run.aviato_findings && state.run.aviato_diagnosis) {
         renderSceneDResult({
@@ -1189,7 +1284,7 @@
           diagnosis: state.run.aviato_diagnosis
         });
       }
-      renderUI();
+      selectVersion(state.run.current_version);
     }
 
     async function refreshState() {
@@ -1200,24 +1295,53 @@
 
     // Event bindings
     document.getElementById('btn-scan-baseline').addEventListener('click', function() {
+      if (isReplayMode && !getDemoToken()) {
+        selectVersion(0);
+        return;
+      }
       runFullSiteBrowserScan(0);
     });
     document.getElementById('btn-scene-a').addEventListener('click', function() {
+      if (isReplayMode && !getDemoToken()) {
+        var va = findVersionBySource('scene_a');
+        if (va != null) { selectVersion(va); return; }
+      }
       runPrebuiltScene('scene_a');
     });
     document.getElementById('btn-scene-a2').addEventListener('click', function() {
+      if (isReplayMode && !getDemoToken()) {
+        var va2 = findVersionBySource('scene_a2') || findVersionBySource('scene_a');
+        if (va2 != null) { selectVersion(va2); return; }
+      }
       runPrebuiltScene('scene_a2');
     });
     document.getElementById('btn-scene-b').addEventListener('click', function() {
+      if (isReplayMode && !getDemoToken()) {
+        var vb = findVersionBySource('scene_b');
+        if (vb != null) { selectVersion(vb); return; }
+      }
       runPrebuiltScene('scene_b');
     });
     document.getElementById('btn-run-all').addEventListener('click', function() {
+      if (isReplayMode && !getDemoToken()) {
+        selectVersion(8);
+        return;
+      }
       runAllGroupsSequential();
     });
     document.getElementById('btn-scene-d').addEventListener('click', function() {
+      if (isReplayMode && !getDemoToken() && state.run && state.run.aviato_findings) {
+        var p = document.getElementById('scene-d-panel');
+        if (p) { p.style.display = 'block'; p.scrollIntoView({behavior: 'smooth'}); }
+        return;
+      }
       runSceneDAviato();
     });
     document.getElementById('btn-apply-alts').addEventListener('click', function() {
+      if (isReplayMode && !getDemoToken()) {
+        var valt = findVersionBySource('group:image-alt');
+        if (valt != null) { selectVersion(valt); return; }
+      }
       applyPickedAlts();
     });
     document.getElementById('btn-approve-patch').addEventListener('click', async function() {
@@ -1235,7 +1359,12 @@
       }
     });
     document.getElementById('btn-reset').addEventListener('click', async function() {
-      var resp = await fetch('/reset', { method: 'POST' });
+      isReplayMode = false;
+      var resp = await fetch('/reset', { method: 'POST', headers: authHeaders() });
+      if (!resp.ok) {
+        selectVersion(0);
+        return;
+      }
       var data = await resp.json();
       state.run = data.run;
       document.getElementById('replay-banner').style.display = 'none';
