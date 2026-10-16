@@ -270,7 +270,7 @@ button,
   padding: 36px 0;
 }
 
-.site-footer p {
+.footer-col p {
   color: var(--color-text-on-dark-soft);
 }
 
@@ -286,14 +286,8 @@ button,
   gap: 12px;
 }
 
-.product-meta,
-.shipping-note,
-.line-meta,
-.cart-note,
-.field-hint,
-.summary-note,
-.utility-note,
-.footer-note {
+.product-meta, .shipping-note, .line-meta, .cart-note,
+.field-hint, .summary-note, .utility-note, .footer-note {
   color: var(--color-text-muted);
   font-size: 14px;
   font-weight: 400;
