@@ -208,8 +208,9 @@ CRITICAL RULES:
    - Newsletter email input (`#newsletter-email`): add an explicit `<label for="newsletter-email">Email address</label>` (never rely on placeholder or title alone)
    - HTML language (`partials/layout-top.html`): set `<html lang="en">`
    - Color contrast (`css/tokens.css` and `css/styles.css`): notice the dual-context token trap! `--color-text-muted: #8C8C8C` is used both on white `#FFFFFF` in the body (`.product-meta`, `.shipping-note`, `.line-meta`, `.cart-note`, `.field-hint`, `.summary-note` — where `#8C8C8C` fails 4.5:1 at 3.36:1) AND on dark `#1C1F26` in the header/footer (`.utility-note`, `.footer-note` — where `#8C8C8C` passes at 4.90:1). Simply darkening `--color-text-muted` to `#595959` or `#767676` will break contrast on the dark `#1C1F26` header/footer! Instead, split the token by surface role: e.g. set `--color-text-muted: #595959` (7.0:1 on white) for the body classes and introduce `--color-text-muted-on-dark: #A6ADBB` (or keep `#8C8C8C` / `var(--color-text-on-dark-soft)`) for `.utility-note, .footer-note` in `css/styles.css`!
-3. Never remove or rename any existing `id` attribute. Never delete content, hide elements (`display:none`, `visibility:hidden`, `opacity:0`, `hidden`), or add `<script>` tags.
-4. Provide complete whole-file contents in `propose_patch` (all store files are <= 300 lines)."""
+3. Fix ONLY the active group's rule (`active_violations`) in this turn so each root-cause group is verified one at a time. When a file appears under `CURRENT APPROVED FILE OVERRIDES`, you MUST start from that current approved file content and preserve all existing fixes (`aria-label`, `<label>`, `lang="en"`, CSS tokens) already present in it!
+4. Never remove or rename any existing `id` attribute. Never delete content, hide elements (`display:none`, `visibility:hidden`, `opacity:0`, `hidden`), or add `<script>` tags.
+5. Provide complete whole-file contents in `propose_patch` (all store files are <= 300 lines)."""
 
 
 FIXED_RULES_BLOCK = """=== PATCH & VERIFICATION RULES ===
@@ -221,17 +222,25 @@ FIXED_RULES_BLOCK = """=== PATCH & VERIFICATION RULES ===
 
 def build_cached_prefix_and_prompt(
     baseline_files: dict[str, str],
+    baseline_keys: list[dict[str, Any]],
     current_files: dict[str, str],
     group_info: dict[str, Any],
 ) -> str:
     """
     Fixed order for implicit caching:
-    system_instruction -> tools -> rules -> source files (fixed sort) -> variable part last.
+    system_instruction -> tools -> rules -> source files (fixed sort) -> baseline violations (fixed sort) -> variable part last.
     No timestamps or random IDs in the prefix.
     """
     chunks: list[str] = [FIXED_RULES_BLOCK, "\n=== BASELINE SOURCE FILES (FIXED SORT) ==="]
     for path in sorted(baseline_files.keys()):
         chunks.append(f"--- FILE: {path} ---\n{baseline_files[path]}")
+
+    sorted_base_keys = sorted(
+        baseline_keys,
+        key=lambda k: (k.get("page", ""), k.get("rule", ""), k.get("selector", "")),
+    )
+    chunks.append("\n=== BASELINE AXE-CORE VIOLATIONS (58 NODES, FIXED SORT) ===")
+    chunks.append(json.dumps(sorted_base_keys, indent=2, ensure_ascii=False))
 
     # Variable part last: any already-approved modifications + current group target
     modified = {
@@ -240,14 +249,16 @@ def build_cached_prefix_and_prompt(
         if current_files.get(p) != baseline_files.get(p)
     }
     if modified:
-        chunks.append("\n=== CURRENT APPROVED FILE OVERRIDES ===")
+        chunks.append(
+            "\n=== CURRENT APPROVED FILE OVERRIDES (MUST PRESERVE ALL FIXES IN THESE FILES) ==="
+        )
         for path, content in modified.items():
             chunks.append(f"--- CURRENT FILE: {path} ---\n{content}")
 
     chunks.append("\n=== ACTIVE ROOT-CAUSE GROUP TO FIX NOW ===")
     chunks.append(json.dumps(group_info, indent=2, ensure_ascii=False))
     chunks.append(
-        "\nCall `update`, `submit_diagnosis`, and `propose_patch` now in this single turn."
+        "\nCall `update`, `submit_diagnosis`, and `propose_patch` now in this single turn. Fix only the active group's rule while preserving any CURRENT APPROVED FILE OVERRIDES."
     )
     return "\n\n".join(chunks)
 

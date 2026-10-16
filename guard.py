@@ -465,12 +465,18 @@ def expand_target_keys(
         matched_any = False
         for bk in baseline_keys:
             if bk["rule"] == rule and (
-                bk["selector"] == selector
+                not selector
+                or bk["selector"] == selector
                 or bk["selector"].endswith(selector)
                 or selector in bk["selector"]
             ):
                 expanded.add((bk["page"], bk["rule"], bk["selector"]))
                 matched_any = True
+        if not matched_any and rule:
+            for bk in baseline_keys:
+                if bk["rule"] == rule:
+                    expanded.add((bk["page"], bk["rule"], bk["selector"]))
+                    matched_any = True
         if not matched_any and rule and selector:
             for p in STORE_PAGES:
                 expanded.add((p, rule, selector))

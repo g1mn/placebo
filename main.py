@@ -635,7 +635,23 @@ async def serve_preview_asset(
                     media_type="image/jpeg",
                     headers=headers,
                 )
-        return Response(content=FALLBACK_JPEG_BYTES, media_type="image/jpeg", headers=headers)
+        svg_palettes = {
+            "promo-knit-week.jpg": ("#EAE4DC", "#B0A89E", "1200", "480"),
+            "navy-wool-coat.jpg": ("#1B2A4A", "#2C4270", "600", "750"),
+            "oatmeal-knit-scarf.jpg": ("#D8CFC2", "#B8AC9B", "600", "750"),
+            "charcoal-ribbed-beanie.jpg": ("#2D3138", "#454B54", "600", "750"),
+            "camel-leather-gloves.jpg": ("#B68656", "#8F653B", "600", "750"),
+            "ivory-cable-sweater.jpg": ("#F3EFE6", "#DDD5C7", "600", "750"),
+            "forest-green-tote.jpg": ("#234233", "#355E4B", "600", "750"),
+        }
+        bg1, bg2, w, h = svg_palettes.get(img_name, ("#CBD5E1", "#94A3B8", "600", "750"))
+        svg_xml = (
+            f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {w} {h}" width="{w}" height="{h}">'
+            f'<rect width="100%" height="100%" fill="{bg1}"/>'
+            f'<rect x="12%" y="12%" width="76%" height="76%" rx="12" fill="{bg2}"/>'
+            f"</svg>"
+        )
+        return Response(content=svg_xml, media_type="image/svg+xml", headers=headers)
 
     raise HTTPException(status_code=404, detail=f"Asset not found: {asset_path}")
 
@@ -1049,6 +1065,7 @@ async def stream_group_patch(
                 }
                 input_payload = build_cached_prefix_and_prompt(
                     baseline_files=baseline_v["files"],
+                    baseline_keys=baseline_scan.get("keys", []),
                     current_files=approved_v["files"],
                     group_info=group_info,
                 )
@@ -1280,8 +1297,7 @@ async def draft_image_alts(run_id: str, request: Request) -> dict[str, Any]:
             "model": src_res["model"],
             "is_fallback": src_res["is_fallback"],
         }
-        if item["id"] not in run["picked_alts"]:
-            run["picked_alts"][item["id"]] = src_res["candidates"][0]
+    run["groups"]["image-alt"]["status"] = "waiting_alt_approval"
 
     return {"status": "ok", "run": _serialize_run(run)}
 

@@ -767,6 +767,7 @@
         var statusBadge = '<span class="badge">' + escapeHtml(g.status) + '</span>';
         if (g.status === 'approved') statusBadge = '<span class="badge badge-green">Approved</span>';
         else if (g.status === 'pending_approval') statusBadge = '<span class="badge badge-blue">Verified — Ready to Approve</span>';
+        else if (g.status === 'waiting_alt_approval') statusBadge = '<span class="badge badge-amber">Waiting for alt approval</span>';
         else if (g.status === 'handoff') statusBadge = '<span class="badge badge-red">Escalated to human: ' + escapeHtml(g.handoff_reason || 'handoff') + '</span>';
         else if (g.status === 'retry_needed') statusBadge = '<span class="badge badge-amber">Retry needed (' + g.retries_used + '/2 used)</span>';
 
@@ -1287,10 +1288,14 @@
         await loadRecordedReplay(replayParam);
       } else if (autorun === 'baseline') {
         await runFullSiteBrowserScan(0);
+      } else if (autorun === 'scan_current') {
+        await runFullSiteBrowserScan(state.run.current_version);
       } else if (autorun === 'scene_a') {
         await runPrebuiltScene('scene_a');
       } else if (autorun === 'scene_b') {
         await runPrebuiltScene('scene_b');
+      } else if (autorun === 'scene_d') {
+        await runSceneDAviato();
       } else if (autorun && autorun.indexOf('group:') === 0) {
         await runArgonGroup(autorun.split(':')[1], false);
       } else if (state && state.run) {
