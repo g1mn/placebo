@@ -1291,6 +1291,8 @@
         await runPrebuiltScene('scene_a');
       } else if (autorun === 'scene_b') {
         await runPrebuiltScene('scene_b');
+      } else if (autorun && autorun.indexOf('group:') === 0) {
+        await runArgonGroup(autorun.split(':')[1], false);
       } else if (state && state.run) {
         frame.src = '/preview/' + encodeURIComponent(state.run.run_id) + '/v0/index.html';
       }

@@ -441,7 +441,7 @@ class GeminiRuntime:
                     }
                 )
 
-            def _call_stream() -> Any:
+            def _call_stream() -> dict[str, Any]:
                 client = self._get_client(timeout_ms=int(remaining_s * 1000))
                 kwargs: dict[str, Any] = {
                     "model": model_id,
@@ -456,13 +456,24 @@ class GeminiRuntime:
                     kwargs["previous_interaction_id"] = prev_id
                 stream = client.interactions.create(**kwargs)
                 final_interaction = None
+                steps_by_idx: dict[int, dict[str, Any]] = {}
                 for ev in stream:
                     if time.time() - t_start > cutoff_s:
                         raise TimeoutError("Round cutoff exceeded")
-                    ev_type = getattr(ev, "event_type", "") or ""
+                    ev_dict = ev.to_dict() if hasattr(ev, "to_dict") else {}
+                    ev_type = ev_dict.get("event_type") or getattr(ev, "event_type", "") or ""
+                    idx = ev_dict.get("index", getattr(ev, "index", 0))
                     if ev_type == "step.start":
-                        step_obj = getattr(ev, "step", None)
-                        s_type = getattr(step_obj, "type", "")
+                        step_d = ev_dict.get("step") or {}
+                        s_type = step_d.get("type", "")
+                        steps_by_idx[idx] = {
+                            "type": s_type,
+                            "id": step_d.get("id", ""),
+                            "name": step_d.get("name", ""),
+                            "args_buf": "",
+                            "initial_args": step_d.get("arguments") or {},
+                            "text_buf": "",
+                        }
                         if s_type == "thought" and on_event:
                             on_event(
                                 {
@@ -477,29 +488,59 @@ class GeminiRuntime:
                                 {
                                     "type": "tool_call_start",
                                     "model": model_id,
-                                    "name": getattr(step_obj, "name", ""),
+                                    "name": step_d.get("name", ""),
                                     "elapsed_s": round(time.time() - t_start, 1),
                                 }
                             )
                     elif ev_type == "step.delta":
-                        delta = getattr(ev, "delta", None) or getattr(ev, "step", None)
-                        txt = getattr(delta, "text", None)
-                        if txt and on_event:
-                            on_event(
-                                {
-                                    "type": "thinking_summary",
-                                    "model": model_id,
-                                    "text": str(txt)[:240],
-                                    "elapsed_s": round(time.time() - t_start, 1),
-                                }
-                            )
+                        delta_d = ev_dict.get("delta") or {}
+                        entry = steps_by_idx.get(idx)
+                        if entry is not None:
+                            if "arguments" in delta_d and delta_d["arguments"]:
+                                entry["args_buf"] += str(delta_d["arguments"])
+                            txt = delta_d.get("text") or delta_d.get("thought")
+                            if txt:
+                                entry["text_buf"] += str(txt)
+                                if on_event:
+                                    on_event(
+                                        {
+                                            "type": "thinking_summary",
+                                            "model": model_id,
+                                            "text": str(txt)[:240],
+                                            "elapsed_s": round(time.time() - t_start, 1),
+                                        }
+                                    )
                     elif ev_type == "interaction.completed":
                         final_interaction = getattr(ev, "interaction", None)
-                return final_interaction
 
-            interaction = await asyncio.wait_for(
+                parsed_calls: list[dict[str, Any]] = []
+                for k in sorted(steps_by_idx.keys()):
+                    st = steps_by_idx[k]
+                    if st["type"] == "function_call":
+                        raw_args = st["args_buf"].strip()
+                        args_obj = st["initial_args"]
+                        if raw_args:
+                            try:
+                                args_obj = json.loads(raw_args)
+                            except Exception:
+                                args_obj = {}
+                        parsed_calls.append(
+                            {
+                                "id": st["id"],
+                                "name": st["name"],
+                                "arguments": args_obj if isinstance(args_obj, dict) else {},
+                            }
+                        )
+                return {
+                    "interaction": final_interaction,
+                    "function_calls": parsed_calls,
+                }
+
+            stream_res = await asyncio.wait_for(
                 asyncio.to_thread(_call_stream), timeout=remaining_s + 2.0
             )
+            interaction = stream_res["interaction"]
+            function_calls = stream_res["function_calls"]
 
             # Retry once at low if status is incomplete in DEMO_MODE=0
             if (
@@ -517,30 +558,14 @@ class GeminiRuntime:
             prev_id = interaction.id
             last_usage_info = self.record_usage(model_id, getattr(interaction, "usage", None))
 
-            function_calls = [
-                s for s in (getattr(interaction, "steps", []) or []) if getattr(s, "type", "") == "function_call"
-            ]
-            for s in getattr(interaction, "steps", []) or []:
-                if getattr(s, "type", "") == "thought":
-                    for c in getattr(s, "content", []) or []:
-                        if getattr(c, "text", None) and on_event:
-                            on_event(
-                                {
-                                    "type": "thinking_summary",
-                                    "model": model_id,
-                                    "text": c.text[:300],
-                                    "elapsed_s": round(time.time() - t_start, 1),
-                                }
-                            )
-
             if not function_calls:
                 break
 
             next_results: list[dict[str, Any]] = []
             for fc in function_calls:
-                fname = fc.name
-                fargs = fc.arguments or {}
-                cid = fc.id
+                fname = fc["name"]
+                fargs = fc["arguments"] or {}
+                cid = fc["id"]
 
                 if fname == "update":
                     msg = fargs.get("message", "Working…")

@@ -1,3 +1,4 @@
 - `gcplab.me` participant account cannot call project-level `setIamPolicy`, but default compute SA (`129595935968-compute@developer.gserviceaccount.com`) already has `roles/editor` and resource-level `gcloud secrets add-iam-policy-binding` works.
 - Google Frontend on `*.run.app` intercepts `/healthz` with a 404; use `/` or `/api/health` instead.
 - On macOS headless Chrome, `CVDisplayLinkCreateWithCGDisplay` fails so `requestAnimationFrame` callbacks need a 50ms `setTimeout` race fallback (`nextFrame`).
+- In `google-genai 2.31.0`, `client.interactions.create(..., stream=True)` emits `function_call` steps via `step.start` + `step.delta` (`delta.arguments` JSON string chunks); `interaction.completed` carries `id`, `status`, and `usage`, not `interaction.steps`.
