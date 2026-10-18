@@ -1,3 +1,6 @@
+> [!IMPORTANT]
+> **Post-hackathon note (2026-10-18):** The Cloud Run links below ran on the event's temporary Google Cloud account and stopped working after the hackathon, so the live app and replay links no longer load. The [3-minute demo video](https://youtu.be/2iEKS7V5sTE) shows the full run.
+
 <div align="center">
 
 # 💊 Placebo
