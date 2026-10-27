@@ -74,8 +74,8 @@ def fetch(sc: str) -> dict[str, Any]:
     cite = _static(sc)
     key = os.environ.get("TAVILY_API_KEY", "").strip()
     if key:
-        body = {"query": f"WCAG 2.2 Understanding Success Criterion {sc} {SC[sc][0]}", "search_depth": "basic",
-                "include_domains": ["w3.org"], "max_results": 5}
+        body = {"query": f"Understanding Success Criterion {sc} {SC[sc][0]} WCAG 2.2", "search_depth": "basic",
+                "include_domains": ["w3.org"], "max_results": 8}
         req = urllib.request.Request(TAVILY_URL, data=json.dumps(body).encode(), method="POST",
                                      headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"})
         t0 = time.time()
@@ -83,13 +83,15 @@ def fetch(sc: str) -> dict[str, Any]:
             with urllib.request.urlopen(req, timeout=15) as r:
                 results = json.loads(r.read()).get("results") or []
             slug = SC[sc][1]
-            # prefer the Understanding page itself, then any W3C WCAG page mentioning the criterion
-            best = next((x for x in results if slug in x.get("url", "") and "Understanding" in x.get("url", "")), None) \
-                or next((x for x in results if "/WAI/" in x.get("url", "")), None)
+            # only the current Understanding page for this criterion counts (2.2 before 2.1); old drafts do not
+            pages = [x for x in results if re.search(rf"/WAI/WCAG2[12]/Understanding/{slug}\.html", x.get("url", ""))]
+            best = min(pages, key=lambda x: "WCAG22" not in x["url"], default=None)
             if best:
                 cite = {"sc": sc, "name": SC[sc][0], "title": best.get("title", ""), "url": best.get("url", ""),
                         "quote": re.sub(r"\s+", " ", best.get("content", "")).strip()[:320],
                         "source": "Tavily search (live)", "fetch_ms": int((time.time() - t0) * 1000)}
+            if not best:
+                cite = {**cite, "source": "static link (Tavily found no Understanding page)"}
         except (urllib.error.URLError, TimeoutError, ValueError) as e:
             cite = {**cite, "source": f"static link (Tavily failed: {str(e)[:80]})"}
     _cache[sc] = cite
