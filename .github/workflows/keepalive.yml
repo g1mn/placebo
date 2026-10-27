@@ -1,0 +1,20 @@
+# Keep the free Render instance warm only while people may open the demo: the submission window (Oct 28-31, 2026)
+# and the judging period (Dec 1-16, 2026). Outside those dates the job exits without a request.
+name: keepalive
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Ping /api/health inside the windows
+        run: |
+          d=$(date -u +%Y%m%d)
+          if { [ "$d" -ge 20261028 ] && [ "$d" -le 20261031 ]; } || { [ "$d" -ge 20261201 ] && [ "$d" -le 20261216 ]; }; then
+            curl -fsS --max-time 90 https://placebo-uluj.onrender.com/api/health
+          else
+            echo "outside keep-alive windows ($d)"
+          fi
