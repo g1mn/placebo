@@ -218,6 +218,13 @@ ROOT_CAUSE_GROUPS = [
 ]
 
 
+def _log_call(run: dict[str, Any], usage: dict[str, Any] | None) -> None:
+    """Per-run model-call ledger, so a live run shows its own cost receipt (RUNTIME.calls_log is process-wide)."""
+    if usage and usage.get("model"):
+        run.setdefault("calls", []).append({k: usage.get(k) for k in (
+            "model", "input_tokens", "cached_tokens", "output_tokens", "total_tokens", "est_cost_usd")})
+
+
 def _check_demo_token(request: Request, body_token: str | None = None) -> None:
     expected = os.environ.get("DEMO_TOKEN", "").strip()
     if not expected:
@@ -743,6 +750,8 @@ async def get_state(run_id: str | None = None) -> dict[str, Any]:
             "daily_cap_usd": float(os.environ.get("DAILY_CAP_USD", "0")),
             "cost_mode": RUNTIME.cost_mode,
             "calls_count": len(RUNTIME.calls_log),
+            "calls": run.get("calls", []),  # this run only
+            "run_total_usd": round(sum(c.get("est_cost_usd") or 0 for c in run.get("calls", [])), 4),
         },
         "models": {
             "FIX": get_role_model("FIX"),
@@ -1121,6 +1130,7 @@ async def stream_group_patch(
                 attempt=group_state["retries_used"] if is_retry_call else 0,  # 2nd retry escalates to Ultra
             )
 
+            _log_call(run, res.get("usage"))
             if res["status"] == "cutoff_replay":
                 group_state["status"] = "handoff"
                 group_state["handoff_reason"] = "cutoff_replay"
@@ -1180,6 +1190,7 @@ async def stream_group_patch(
             # Optional Nano wording guard (only adds items to the human review list, never removes)
             if diff_txt and guard_res["can_render"]:
                 wg = await RUNTIME.run_wording_guard(diff_txt)
+                _log_call(run, wg.get("usage"))
                 for item in wg.get("items", []):
                     if item not in guard_res["human_review_items"]:
                         guard_res["human_review_items"].append(f"[{get_role_model('ROUTER').split('/')[-1]} wording check] {item}")
@@ -1317,6 +1328,7 @@ async def draft_image_alts(run_id: str, request: Request) -> dict[str, Any]:
                 page_context=cat_item["context"],
                 image_bytes=img_bytes,
             )
+            _log_call(run, res.get("usage"))
             cands = res.get("candidates", [])
             first = cat_item["default_first"]
             # Ensure exact canonical 1st option for deterministic Scene C readout ('Navy wool coat')
@@ -1530,6 +1542,7 @@ async def run_aviato_diagnosis(run_id: str, request: Request) -> dict[str, Any]:
         soundcheck_findings=findings,
         css_excerpt=css_excerpt,
     )
+    _log_call(run, diag_res.get("usage"))
     run["aviato_scan"] = axe_summary
     run["aviato_findings"] = findings
     run["aviato_diagnosis"] = diag_res

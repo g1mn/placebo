@@ -1228,6 +1228,7 @@
       });
       var updated = await resp.json();
       state.run = updated.run;
+      await refreshState();  // pull this run's cost ledger too, so the rail and receipt update during a live run
       var totalS = ((performance.now() - t0) / 1000).toFixed(1);
       setStepState(stepNum, 'done (' + totalS + ' s)', 'done');
       renderUI();
@@ -1576,10 +1577,11 @@
         Object.keys(usage).forEach(function(k) {
           nCalls += usage[k].calls; tok += usage[k].tokens; inp += usage[k].input; cached += usage[k].cached; sum += usage[k].cost;
         });
-        label = isReplayMode ? 'Whole run' : 'This session';
+        label = isReplayMode ? 'Whole run' : 'This run';
         detail = plural(nCalls, 'model call') + ' · ' + fmtTokens(tok) + ' tokens' +
           (inp ? ' · ' + Math.round(100 * cached / inp) + '% of input served from cache' : '');
-        total = (state.spend && state.spend.total_usd != null) ? state.spend.total_usd : sum;
+        // replay: the recording's own total; live: this run's ledger (the server total covers every visitor)
+        total = isReplayMode && state.spend && state.spend.total_usd != null ? state.spend.total_usd : sum;
       } else {
         var sp = state.spend || {};
         label = 'This session';
@@ -1638,12 +1640,12 @@
       var baseTxt = baseCount == null ? '—' : String(baseCount);
       var curTxt = curCount == null ? '—' : String(curCount);
 
-      var spend = state.spend ? state.spend.total_usd : 0;
+      var spend = state.spend ? (isReplayMode || state.spend.run_total_usd == null ? state.spend.total_usd : state.spend.run_total_usd) : 0;
       document.getElementById('spend-badge').textContent = isReplayMode
         ? 'Recorded run cost ' + fmtUsd(spend)
-        : 'Session spend ' + fmtUsd(spend) +
-          (state.spend && state.spend.cap_usd != null ? ' of $' + Number(state.spend.cap_usd).toFixed(2) + ' cap' : '') +
-          ' · ' + (run.cost_mode || 'save') + ' mode';
+        : 'This run ' + fmtUsd(spend) +
+          (state.spend && state.spend.daily_cap_usd ? ' · live cap $' + Number(state.spend.daily_cap_usd).toFixed(2) + '/day'
+            : state.spend && state.spend.cap_usd != null ? ' · live cap $' + Number(state.spend.cap_usd).toFixed(2) : '');
 
       document.getElementById('btn-download-trace').href = '/api/run/' + encodeURIComponent(run.run_id) + '/trace.json';
       document.getElementById('results-run-label').textContent = 'Run ' + run.run_id + ' · started ' + run.created_at_kst +
