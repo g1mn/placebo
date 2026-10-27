@@ -1123,7 +1123,7 @@
       list.innerHTML = '';
       if (!cites || !cites.length) { box.hidden = true; return; }
       var live = cites.some(function(c) { return /Tavily search/.test(c.source || ''); });
-      document.getElementById('hero-sources-how').textContent = live ? ' · fetched live with Tavily' : ' · W3C links (no Tavily key)';
+      document.getElementById('hero-sources-how').textContent = live ? ' · fetched live with Tavily' : ' · W3C links';
       cites.slice(0, 3).forEach(function(c) {
         var li = document.createElement('li');
         var a = document.createElement('a');
