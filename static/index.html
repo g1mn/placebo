@@ -1098,7 +1098,7 @@
       if (isPrebuilt(vo)) return 'Pre-built test patch — not model output';
       var m = vo.model || '';
       var html = escapeHtml(modelShort(m)) + (m ? ' <code>' + escapeHtml(m) + '</code>' : '');
-      if (vo.source === 'assist_alt') html += ' + a human pick';
+      if (vo.source === 'assist_alt') html += isReplayMode ? ' + the recording script accepting the pre-selected option' : ' + a human pick';
       if (vo.is_fallback) html += ' (fallback model)';
       return html;
     }
@@ -1519,8 +1519,8 @@
         roles: ['ASSIST'],
         id: models.ASSIST,
         did: altKeys.length
-          ? 'Looked at ' + plural(altKeys.length, 'store image') + ', drafted ' + plural(drafted, 'alt-text candidate') +
-            '; ' + (picked ? 'a human picked ' + picked + '.' : 'waiting for a human to pick.')
+          ? 'Looked at ' + plural(altKeys.length, 'store image') + ', offered ' + plural(drafted, 'alt-text candidate') + ' (a preset plus Super-VL drafts)' +
+            '; ' + (picked ? (isReplayMode ? 'the recording script accepted the pre-selected ' + picked + '.' : 'a human picked ' + picked + '.') : 'waiting for a human to pick.')
           : 'No images drafted yet.',
         idle: !altKeys.length
       });
