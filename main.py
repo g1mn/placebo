@@ -746,6 +746,7 @@ async def get_state(run_id: str | None = None) -> dict[str, Any]:
             "ASSIST": get_role_model("ASSIST"),
             "ROUTER": get_role_model("ROUTER"),
             "TTS": get_role_model("TTS"),
+            **({"ESCALATE": get_role_model("ESCALATE")} if "nebius" in ModelRuntime.__module__ else {}),
         },
         "demo_token_required": bool(os.environ.get("DEMO_TOKEN", "").strip()),
         "available_replays": replays,

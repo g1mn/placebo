@@ -141,6 +141,7 @@ def main_():
         except Exception as e:  # one failed API run is a data point, not the end of the benchmark
             print(f"run {i + 1}: ERROR {str(e)[:200]}", flush=True)
             out.setdefault("errors", []).append(str(e)[:300])
+            Path(a.out).write_text(json.dumps(out, indent=1, ensure_ascii=False))
             continue
         out["runs"].append(r)
         print(f"run {i + 1}: axe {r['baseline_axe']}->{r['final_axe']} placebo_pass={r['placebo_all_pass']} "
