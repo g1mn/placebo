@@ -8,6 +8,7 @@ Roles (override with MODEL_<ROLE> env vars):
   FIX / REVIEW  nvidia/nemotron-3-super-120b-a12b   root-cause diagnosis + whole-file patch via tool calls
   ASSIST        nvidia/Nemotron-3.5-Super-VL         sees the product photo, drafts alt-text candidates
   ROUTER        nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B wording guard (can only add items to the human review list)
+  ESCALATE      nvidia/Nemotron-3-Ultra-550b-a55b    second retry only: Super → Super (with verifier feedback) → Ultra
 Scene C readout is voiced in the browser (Web Speech API), so there is no server TTS model.
 """
 from __future__ import annotations
@@ -15,6 +16,7 @@ from __future__ import annotations
 import asyncio
 import base64
 import json
+import logging
 import os
 import re
 import time
@@ -35,13 +37,15 @@ from gemini_agent import FIXED_SYSTEM_INSTRUCTION, LIVE_TOOLS  # prompts and too
 
 BASE_URL = os.environ.get("NEBIUS_BASE_URL", "https://api.tokenfactory.nebius.com/v1").rstrip("/")
 NEMOTRON_SEMAPHORE = asyncio.Semaphore(2)
+log = logging.getLogger("placebo.nebius")
 SPEND_CAP_USD = float(os.environ.get("SPEND_CAP_USD", "10"))
 
-# ponytail: rough USD per 1M tokens for the on-screen spend meter only — Token Factory billing is the source of truth
+# USD per 1M tokens from GET /v1/models?verbose=true (checked 2026-10-27) for the on-screen spend meter;
+# Token Factory billing is the source of truth
 PRICING_PER_1M = {
-    "nvidia/nemotron-3-super-120b-a12b": {"input": 0.30, "output": 0.90},
-    "nvidia/Nemotron-3-Ultra-550b-a55b": {"input": 1.00, "output": 3.00},
-    "nvidia/Nemotron-3.5-Super-VL": {"input": 0.30, "output": 0.90},
+    "nvidia/nemotron-3-super-120b-a12b": {"input": 0.30, "cached": 0.06, "output": 0.90},
+    "nvidia/Nemotron-3-Ultra-550b-a55b": {"input": 1.00, "cached": 0.12, "output": 3.00},
+    "nvidia/Nemotron-3.5-Super-VL": {"input": 0.30, "cached": 0.06, "output": 0.90},
     "nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B": {"input": 0.06, "output": 0.24},
     "nvidia/Nemotron-3_5-Lightning": {"input": 0.06, "output": 0.24},
 }
@@ -51,6 +55,7 @@ DEFAULTS = {
     "REVIEW": "nvidia/nemotron-3-super-120b-a12b",
     "ASSIST": "nvidia/Nemotron-3.5-Super-VL",
     "ROUTER": "nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B",
+    "ESCALATE": "nvidia/Nemotron-3-Ultra-550b-a55b",
     "TTS": "browser-web-speech",
 }
 
@@ -72,6 +77,54 @@ OPENAI_TOOLS = [
 ]
 
 
+def _loads(v: Any) -> Any:
+    # Nemotron sometimes double-encodes nested JSON (tool arguments, files, search_replace) as strings, and sometimes
+    # the string holds the complete value followed by the remaining arguments (', "targeted_keys": [...]'): keep the
+    # first complete JSON value and drop the trailing text; or the last object of an array is missing its "}"
+    while isinstance(v, str):
+        try:
+            v = json.loads(v)
+        except json.JSONDecodeError as e:
+            if e.msg == "Extra data":
+                v = json.JSONDecoder().raw_decode(v.lstrip())[0]
+            elif v.lstrip()[:1] in ("[", "{") and (fixed := _repair(v)) != v:
+                v = fixed  # parse the repaired text on the next pass (it may still carry trailing arguments)
+            else:
+                break
+    return v
+
+
+def _repair(s: str) -> str:
+    """Repairs for the corruptions we captured in propose_patch.files (an array of {path, content} objects only,
+    so a string value is never followed by ']' and a backslash before whitespace was meant as a newline)."""
+    s = re.sub(r'(?<!\\)"\s*\](?=\s*[,}])', '"', s)                 # "...css\n"], "path": ...  /  "..."]}]
+    s = re.sub(r'(?<!\\)\\(?=[ \t])', r'\\n', s)                  # </div>\    <div  ->  </div>\n    <div
+    s = re.sub(r'(?<!\\)\\(?![\\"/bfnrtu])', r'\\\\', s)     # any other invalid escape: keep a literal backslash
+    if s.rstrip().endswith('"]'):                                        # last object lost its closing brace
+        s = s.rstrip()[:-1] + "}]"
+    return s
+
+
+def _patch_files(raw: Any) -> list[dict[str, Any]]:
+    files = _loads(raw)
+    if isinstance(raw, str) and os.environ.get("PLACEBO_QUIRK_DUMP"):  # debug: keep raw strings for the feedback report
+        with open(os.environ["PLACEBO_QUIRK_DUMP"], "a") as fh:
+            fh.write(json.dumps({"raw": raw}) + "\n")
+    files = [files] if isinstance(files, dict) else files if isinstance(files, list) else []
+    out = []
+    for f in map(_loads, files):
+        if not isinstance(f, dict) or not str(f.get("path") or "").strip():
+            continue
+        if f.get("search_replace") is not None:
+            sr = _loads(f["search_replace"])
+            f["search_replace"] = [b for b in map(_loads, sr if isinstance(sr, list) else [sr]) if isinstance(b, dict)]
+        if f.get("content") is not None or f.get("search_replace"):
+            out.append(f)
+    if isinstance(raw, str) or out != files:
+        log.warning("nemotron quirk: propose_patch.files arrived as %s, decoded to %d file(s)", type(raw).__name__, len(out))
+    return out
+
+
 def _chat(body: dict[str, Any], timeout_s: float) -> dict[str, Any]:
     key = os.environ.get("NEBIUS_API_KEY", "").strip()
     if not key:
@@ -81,11 +134,27 @@ def _chat(body: dict[str, Any], timeout_s: float) -> dict[str, Any]:
         data=json.dumps(body).encode(),
         headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
     )
-    try:
-        with urllib.request.urlopen(req, timeout=timeout_s) as r:
-            return json.loads(r.read())
-    except urllib.error.HTTPError as e:
-        raise RuntimeError(f"Token Factory {e.code}: {e.read()[:300].decode('utf-8', 'replace')}") from e
+    deadline = time.time() + timeout_s
+    for attempt in (1, 2, 3):
+        try:
+            with urllib.request.urlopen(req, timeout=max(1.0, deadline - time.time())) as r:
+                return json.loads(r.read())
+        except urllib.error.HTTPError as e:
+            detail = e.read()[:300].decode("utf-8", "replace")
+            # overload / rate limit: the request was refused before any work, so a resend cannot double-bill
+            if e.code not in (429, 503, 529) or attempt == 3 or deadline - time.time() < 10:
+                raise RuntimeError(f"Token Factory {e.code}: {detail}") from e
+            try:
+                wait = min(10.0, float(e.headers.get("Retry-After") or 3 * attempt))
+            except ValueError:
+                wait = 3.0 * attempt
+            log.warning("Token Factory %s (%s), retrying in %ss", e.code, detail[:80], wait)
+            time.sleep(wait)
+        except urllib.error.URLError as e:  # connect/TLS failure: the request never reached the model, safe to resend
+            if attempt == 3 or deadline - time.time() < 5:
+                raise
+            log.warning("Token Factory connection failed (%s), retrying", e.reason)
+            time.sleep(2)
 
 
 def _text(resp: dict[str, Any]) -> str:
@@ -123,7 +192,9 @@ class NebiusRuntime:
         cached = int((usage.get("prompt_tokens_details") or {}).get("cached_tokens") or 0)
         thought = int((usage.get("completion_tokens_details") or {}).get("reasoning_tokens") or 0)
         rates = PRICING_PER_1M.get(model, {"input": 0.3, "output": 0.9})
-        cost = in_tok / 1e6 * rates["input"] + out_tok / 1e6 * rates["output"]
+        # completion_tokens already include reasoning_tokens (prompt + completion == total)
+        cost = ((in_tok - cached) * rates["input"] + cached * rates.get("cached", rates["input"])
+                + out_tok * rates["output"]) / 1e6
         self.total_spend_usd = round(self.total_spend_usd + cost, 6)
         info = {
             "model": model,
@@ -150,13 +221,15 @@ class NebiusRuntime:
         current_files: dict[str, str],
         baseline_scan_summary: dict[str, Any],
         on_event: Callable[[dict[str, Any]], None] | None = None,
+        attempt: int = 0,
     ) -> dict[str, Any]:
         if self.total_spend_usd >= SPEND_CAP_USD:
             return {"status": "handoff", "reason": "spend_cap_reached",
                     "message": f"Escalated to human: cumulative ${SPEND_CAP_USD:g} spend cap reached"}
         demo = is_demo_mode()
-        cutoff_s = (40.0 if is_retry else 85.0) if demo else (60.0 if is_retry else 120.0)
-        model_id = get_role_model("FIX")
+        short = is_retry and attempt < 2  # the Ultra escalation is a slower model: give it the first-try budget
+        cutoff_s = (40.0 if short else 85.0) if demo else (60.0 if short else 120.0)
+        model_id = get_role_model("ESCALATE" if attempt >= 2 else "FIX")
         try:
             async with NEMOTRON_SEMAPHORE:
                 return await self._hops(model_id, input_payload, previous_interaction_id, cutoff_s,
@@ -181,17 +254,22 @@ class NebiusRuntime:
         emit = on_event or (lambda e: None)
         msgs = self._messages_for(prev_id, input_payload)
         diagnosis = None
-        companion: list[dict[str, Any]] = []
+        usage_sum = {"input_tokens": 0, "cached_tokens": 0, "output_tokens": 0, "thought_tokens": 0,
+                     "total_tokens": 0, "est_cost_usd": 0.0}
         usage_info: dict[str, Any] = {}
         inter_id = prev_id
-        for hop in range(1, 4):
+        for hop in range(1, 5):
             remaining = max(5.0, cutoff_s - (time.time() - t0))
             emit({"type": "model_start", "model": model_id, "is_fallback": False, "thinking_level": "medium",
                   "hop": hop, "elapsed_s": round(time.time() - t0, 1)})
             body = {"model": model_id, "messages": msgs, "tools": OPENAI_TOOLS, "tool_choice": "auto",
                     "max_tokens": 32768, "temperature": 0.2}
             resp = await asyncio.wait_for(asyncio.to_thread(_chat, body, remaining), timeout=remaining + 2)
-            usage_info = self.record_usage(model_id, resp.get("usage"))
+            u = self.record_usage(model_id, resp.get("usage"))
+            for k in usage_sum:  # report the whole attempt, not just its last hop
+                usage_sum[k] = round(usage_sum[k] + (u.get(k) or 0), 6)
+            usage_info = {**u, **usage_sum, "hops": hop, "cache_hit_pct": round(
+                usage_sum["cached_tokens"] / usage_sum["input_tokens"] * 100, 1) if usage_sum["input_tokens"] else None}
             msg = resp["choices"][0]["message"]
             reasoning = msg.get("reasoning_content") or msg.get("reasoning") or ""
             if reasoning:
@@ -204,59 +282,82 @@ class NebiusRuntime:
             self._histories[inter_id] = msgs
             if not calls:
                 break
-            patch, propose_id, tool_results = None, None, []
+            # every tool_call id gets exactly one tool reply (OpenAI-compatible APIs reject unanswered ids)
+            proposals, tool_results = [], []
             for c in calls:
                 name = c["function"]["name"]
-                try:
-                    args = json.loads(c["function"].get("arguments") or "{}")
-                except json.JSONDecodeError:
+                args = _loads(c["function"].get("arguments") or "{}")
+                if not isinstance(args, dict):
+                    log.warning("nemotron quirk: %s arguments not an object: %r", name, str(args)[:200])
                     args = {}
                 cid = c["id"]
+
+                def reply(result: Any, name: str = name, cid: str = cid) -> None:
+                    tool_results.append({"type": "function_result", "name": name, "call_id": cid,
+                                         "result": result if isinstance(result, str) else json.dumps(result)})
+
                 emit({"type": "tool_call_start", "model": model_id, "name": name, "elapsed_s": round(time.time() - t0, 1)})
                 if name == "update":
                     emit({"type": "agent_update", "model": model_id, "message": args.get("message", "Working…"),
                           "elapsed_s": round(time.time() - t0, 1)})
-                    r = {"type": "function_result", "name": name, "call_id": cid, "result": json.dumps({"status": "ok"})}
-                    tool_results.append(r); companion.append(r)
+                    reply({"status": "ok"})
                 elif name == "submit_diagnosis":
                     diagnosis = {"group_id": args.get("group_id", ""), "mode": args.get("mode", "patch"),
                                  "root_cause": args.get("root_cause", ""), "shared_files": args.get("shared_files", []),
                                  "cannot_fix": bool(args.get("cannot_fix", False)),
                                  "escalation_reason": args.get("escalation_reason", "")}
                     emit({"type": "diagnosis", "model": model_id, "diagnosis": diagnosis, "elapsed_s": round(time.time() - t0, 1)})
-                    r = {"type": "function_result", "name": name, "call_id": cid, "result": json.dumps({"status": "recorded"})}
-                    tool_results.append(r); companion.append(r)
+                    reply({"status": "recorded"})
                 elif name == "escalate_group":
                     return {"status": "escalated", "model": model_id, "is_fallback": False, "interaction_id": inter_id,
                             "diagnosis": diagnosis, "reason": args.get("reason", "Model escalated group to human"),
                             "cannot_fix": bool(args.get("cannot_fix", True)), "usage": usage_info,
                             "elapsed_s": round(time.time() - t0, 2)}
                 elif name == "propose_patch":
-                    patch = {"files": args.get("files", []), "targeted_keys": args.get("targeted_keys", []),
-                             "summary": args.get("summary", "")}
-                    propose_id = cid
-                    emit({"type": "patch_proposed", "model": model_id, "summary": patch["summary"],
-                          "files": [f.get("path") for f in patch["files"]], "elapsed_s": round(time.time() - t0, 1)})
+                    files = _patch_files(args.get("files", []))
+                    if files:
+                        proposals.append((cid, files, args))
+                    else:  # malformed files argument: say so in-conversation instead of staging an empty patch
+                        log.warning("nemotron quirk: unusable propose_patch.files %r", str(args.get("files"))[:300])
+                        reply({"status": "rejected", "error": "files must be a JSON array of objects with path and "
+                               "content (or search_replace). Your files argument could not be parsed. Call propose_patch again."})
                 elif name == "read_file":
-                    p = (args.get("path") or "").strip().lstrip("/")
-                    tool_results.append({"type": "function_result", "name": name, "call_id": cid,
-                                         "result": current_files.get(p, "ERROR: File not found")})
+                    reply(current_files.get((args.get("path") or "").strip().lstrip("/"), "ERROR: File not found"))
                 elif name == "run_scan":
-                    tool_results.append({"type": "function_result", "name": name, "call_id": cid,
-                                         "result": json.dumps(scan_summary)})
+                    reply(scan_summary)
+                else:
+                    reply({"status": "error", "error": f"unknown tool {name}"})
             if diagnosis and (diagnosis.get("mode") == "guide" or diagnosis.get("cannot_fix")):
                 return {"status": "escalated", "model": model_id, "is_fallback": False, "interaction_id": inter_id,
                         "diagnosis": diagnosis, "reason": diagnosis.get("escalation_reason") or "cannot_fix",
                         "cannot_fix": True, "usage": usage_info, "elapsed_s": round(time.time() - t0, 2)}
-            if patch is not None:
-                # the retry path sends companion + propose_patch results back as tool messages (main.py)
+            if proposals:
+                # one call per file is a valid reading of the tool: merge them (a later call wins for the same path)
+                merged: dict[str, dict[str, Any]] = {}
+                keys: list[dict[str, Any]] = []
+                summaries: list[str] = []
+                for _, files, a in proposals:
+                    for f in files:
+                        merged[str(f["path"]).strip().lstrip("/")] = f
+                    tk = _loads(a.get("targeted_keys"))
+                    tk = [tk] if isinstance(tk, dict) else tk if isinstance(tk, list) else []
+                    keys += [k for k in map(_loads, tk) if isinstance(k, dict) and k not in keys]
+                    if a.get("summary"):
+                        summaries.append(str(a["summary"]))
+                propose_id = proposals[-1][0]
+                for pcid, _, _ in proposals[:-1]:
+                    tool_results.append({"type": "function_result", "name": "propose_patch", "call_id": pcid,
+                                         "result": json.dumps({"status": "merged into your last propose_patch call"})})
+                patch = {"files": list(merged.values()), "targeted_keys": keys, "summary": "; ".join(summaries)}
+                emit({"type": "patch_proposed", "model": model_id, "summary": patch["summary"],
+                      "files": list(merged), "elapsed_s": round(time.time() - t0, 1)})
+                # the retry path (main.py) answers propose_call_id with verifier feedback and replays these replies
                 return {"status": "patch_proposed", "model": model_id, "is_fallback": False, "thinking_level": "medium",
-                        "interaction_id": inter_id, "propose_call_id": propose_id, "companion_results": companion,
+                        "interaction_id": inter_id, "propose_call_id": propose_id, "companion_results": tool_results,
                         "diagnosis": diagnosis, "patch": patch, "usage": usage_info,
                         "elapsed_s": round(time.time() - t0, 2)}
             for r in tool_results:
                 msgs.append({"role": "tool", "tool_call_id": r["call_id"], "content": str(r["result"])})
-            companion = []
         return {"status": "no_patch", "model": model_id, "is_fallback": False, "interaction_id": inter_id,
                 "diagnosis": diagnosis, "usage": usage_info, "elapsed_s": round(time.time() - t0, 2)}
 
