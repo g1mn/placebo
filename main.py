@@ -15,14 +15,13 @@ from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
-from gemini_agent import (
-     SPEND_CAP_USD,
-    GeminiRuntime,
-    build_cached_prefix_and_prompt,
-    get_role_model,
-    get_role_thinking,
-    is_demo_mode,
-)
+from gemini_agent import build_cached_prefix_and_prompt
+
+# Model backend: Nebius Token Factory + NVIDIA Nemotron by default; MODEL_BACKEND=gemini restores the original Gemini path.
+if os.environ.get("MODEL_BACKEND", "nebius").strip().lower() == "gemini":
+    from gemini_agent import SPEND_CAP_USD, GeminiRuntime as ModelRuntime, get_role_model, get_role_thinking, is_demo_mode
+else:
+    from nebius_runtime import SPEND_CAP_USD, NebiusRuntime as ModelRuntime, get_role_model, get_role_thinking, is_demo_mode
 from guard import (
     build_retry_feedback,
     evaluate_six_conditions,
@@ -55,7 +54,7 @@ REPLAYS_DIR.mkdir(parents=True, exist_ok=True)
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
 KST = timezone(timedelta(hours=9))
-RUNTIME = GeminiRuntime()
+RUNTIME = ModelRuntime()
 
 # Single-instance in-memory state (per AGENTS.md §3)
 RUNS: dict[str, dict[str, Any]] = {}

@@ -6,3 +6,4 @@ __pycache__/
 *.mov
 *.mp4
 .DS_Store
+.venv/

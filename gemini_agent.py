@@ -9,7 +9,6 @@ from pathlib import Path
 from typing import Any, AsyncGenerator, Callable
 
 from dotenv import load_dotenv
-from google import genai
 
 # Load local hackathon env if present (never committed)
 _local_env = Path.home() / "hack" / ".env.hackathon"
@@ -272,7 +271,9 @@ class GeminiRuntime:
         self.pin_thinking_low: bool = False
         self.cost_mode: str = os.environ.get("COST_MODE", "save").strip().lower()
 
-    def _get_client(self, timeout_ms: int = 120000) -> genai.Client:
+    def _get_client(self, timeout_ms: int = 120000):
+        from google import genai  # lazy: the default Nebius backend does not need google-genai installed
+
         api_key = os.environ.get("GEMINI_API_KEY", "").strip()
         if not api_key:
             raise RuntimeError("GEMINI_API_KEY is not configured in environment.")

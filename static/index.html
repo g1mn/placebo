@@ -324,7 +324,7 @@
     </div>
     <div id="step-card-2" class="step-card">
       <div class="step-num">Step 2/5</div>
-      <div class="step-title">2 Diagnose &amp; patch (Argon)</div>
+      <div class="step-title">2 Diagnose &amp; patch (Nemotron)</div>
       <div id="step-status-2" class="step-status">waiting</div>
     </div>
     <div id="step-card-3" class="step-card">
@@ -399,13 +399,13 @@
         <div id="groups-container"></div>
       </section>
 
-      <!-- Live Argon Stream & Approval Screen -->
+      <!-- Live Nemotron Stream & Approval Screen -->
       <section class="panel">
         <h2>
-          <span>Live Argon Stream &amp; Human Approval</span>
+          <span>Live Nemotron Stream &amp; Human Approval</span>
           <span id="stream-model-badge" class="badge">Idle</span>
         </h2>
-        <pre id="stream-log" class="stream-box">Click "1. Scan Baseline Store" or "Diagnose &amp; Patch (Argon)" on any root-cause group.</pre>
+        <pre id="stream-log" class="stream-box">Click "1. Scan Baseline Store" or "Diagnose &amp; Patch (Nemotron)" on any root-cause group.</pre>
 
         <div id="approval-panel" style="display:none; margin-top:10px; border-top:1px solid var(--border); padding-top:10px;">
           <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
@@ -432,11 +432,11 @@
         </div>
       </section>
 
-      <!-- Scene C: Simulated Screen-Reader Readout (voiced by Gemini TTS) -->
+      <!-- Scene C: Simulated Screen-Reader Readout (voiced in the browser) -->
       <section class="panel">
         <h2>
-          <span>Scene C: Simulated screen-reader readout (voiced by Gemini TTS)</span>
-          <span id="tts-model-badge" class="badge">gemini-3.8-flash-tts</span>
+          <span>Scene C: Simulated screen-reader readout (voiced in the browser)</span>
+          <span id="tts-model-badge" class="badge">browser speech</span>
         </h2>
         <p style="margin:0 0 8px; font-size:12px; color:var(--muted);">
           Simulated readout: accessible name, or the role when the name is empty.
@@ -445,13 +445,13 @@
           <div class="readout-card">
             <div style="font-size:11px; color:var(--muted); text-transform:uppercase; font-weight:700;">Before (Baseline v0)</div>
             <div id="readout-before-text" style="font-weight:700; font-size:14px; margin:6px 0; color:#fca5a5;">button. link. button. image.</div>
-            <button id="btn-tts-before" class="btn" type="button">Play Before (Gemini TTS)</button>
+            <button id="btn-tts-before" class="btn" type="button">Play Before (screen reader)</button>
             <audio id="audio-before" controls style="width:100%; margin-top:8px; height:32px; display:none;"></audio>
           </div>
           <div class="readout-card">
             <div style="font-size:11px; color:var(--muted); text-transform:uppercase; font-weight:700;">After (Current Preview)</div>
             <div id="readout-after-text" style="font-weight:700; font-size:14px; margin:6px 0; color:#86efac;">Search. Cart. Menu. Navy wool coat.</div>
-            <button id="btn-tts-after" class="btn btn-primary" type="button">Play After (Gemini TTS)</button>
+            <button id="btn-tts-after" class="btn btn-primary" type="button">Play After (screen reader)</button>
             <audio id="audio-after" controls style="width:100%; margin-top:8px; height:32px; display:none;"></audio>
           </div>
         </div>
@@ -839,7 +839,7 @@
 
         var actionHtml = '';
         if (g.engine === 'argon') {
-          actionHtml = '<button class="btn btn-primary btn-run-group" data-group="' + gid + '" data-retry="0" type="button">Diagnose &amp; Patch (Argon)</button>';
+          actionHtml = '<button class="btn btn-primary btn-run-group" data-group="' + gid + '" data-retry="0" type="button">Diagnose &amp; Patch (Nemotron)</button>';
           if (g.status === 'retry_needed' && g.retries_used < 2) {
             actionHtml += ' <button class="btn btn-warn btn-run-group" data-group="' + gid + '" data-retry="1" type="button">Retry with Feedback</button>';
           }
@@ -954,7 +954,7 @@
         if (t.cache_hit_pct != null) maxCache = t.cache_hit_pct + '%';
       });
       document.getElementById('res-spend').textContent =
-        '$' + Number(spend).toFixed(4) + ' · Argon cache hit: ' + maxCache;
+        '$' + Number(spend).toFixed(4) + ' · Token Factory cache hit: ' + maxCache;
     }
 
     function escapeHtml(s) {
@@ -975,8 +975,8 @@
       var url = '/api/run/' + encodeURIComponent(runId) + '/group/' + encodeURIComponent(groupId) + '/stream?retry=' + (isRetry ? 1 : 0);
       if (token) url += '&token=' + encodeURIComponent(token);
 
-      setStepState(2, 'running (0.0 s, ' + (state.models ? state.models.FIX : 'gemini-4-argon') + ')', 'active');
-      logLine('Starting Argon diagnose+patch for group "' + groupId + '"...');
+      setStepState(2, 'running (0.0 s, ' + (state.models ? state.models.FIX : 'nemotron-3-super') + ')', 'active');
+      logLine('Starting Nemotron diagnose+patch (Nebius Token Factory) for group "' + groupId + '"...');
 
       return new Promise(function(resolve) {
         var es = new EventSource(url);
@@ -1041,7 +1041,7 @@
     async function draftAltCandidates() {
       var runId = state.run.run_id;
       logLine('Drafting 3 alt text candidates per image in parallel with MODEL_ASSIST...');
-      setStepState(2, 'drafting alt candidates (' + (state.models ? state.models.ASSIST : 'gemini-3.8-flash') + ')', 'active');
+      setStepState(2, 'drafting alt candidates (' + (state.models ? state.models.ASSIST : 'Nemotron-3.5-Super-VL') + ')', 'active');
       var resp = await fetch('/api/run/' + encodeURIComponent(runId) + '/draft-alts', {
         method: 'POST',
         headers: authHeaders()
@@ -1137,7 +1137,7 @@
         audioEl.play();
         return;
       }
-      logLine('Synthesizing readout with Gemini TTS: "' + txt + '"');
+      logLine('Voicing readout (screen-reader style): "' + txt + '"');
       var resp = await fetch('/api/run/' + encodeURIComponent(runId) + '/tts', {
         method: 'POST',
         headers: authHeaders(),
@@ -1153,6 +1153,13 @@
         audioEl.src = data.tts.audio_data_url;
         audioEl.style.display = 'block';
         audioEl.play();
+      } else if (window.speechSynthesis) {
+        // No server TTS on the Nebius backend: voice the readout in the browser like a real screen reader would
+        window.speechSynthesis.cancel();
+        var u = new SpeechSynthesisUtterance(txt);
+        u.lang = 'en-US';
+        u.rate = 1.05;
+        window.speechSynthesis.speak(u);
       }
     }
 
@@ -1187,7 +1194,7 @@
       // Restore store preview
       frame.src = '/preview/' + encodeURIComponent(state.run.run_id) + '/v' + state.run.current_version + '/' + currentPage;
 
-      content.innerHTML = 'Running Placebo deterministic checks + Gemini 4 Argon root-cause diagnosis on Aviato...';
+      content.innerHTML = 'Running Placebo deterministic checks + NVIDIA Nemotron root-cause diagnosis (Nebius Token Factory) on Aviato...';
       var resp = await fetch('/api/run/' + encodeURIComponent(state.run.run_id) + '/aviato-diagnose', {
         method: 'POST',
         headers: authHeaders(),
@@ -1212,7 +1219,7 @@
       panel.style.display = 'block';
       var findings = data.findings || [];
       var diag = (data.diagnosis && data.diagnosis.diagnosis) || {};
-      var model = (data.diagnosis && data.diagnosis.model) || 'gemini-4-argon';
+      var model = (data.diagnosis && data.diagnosis.model) || 'nvidia/nemotron-3-super-120b-a12b';
       var scan = state.run.aviato_scan || {};
 
       var findingsHtml = findings.map(function(f) {
@@ -1232,7 +1239,7 @@
         'Incomplete items (listed separately): ' + ((scan.incomplete || []).length) + ' · Model: <span class="badge badge-blue">' + escapeHtml(model) + '</span></div>' +
         findingsHtml +
         '<div class="readout-card" style="border-color:var(--accent);">' +
-          '<div><strong>Argon Root-Cause Diagnosis:</strong> ' + escapeHtml(diag.headline || '') + '</div>' +
+          '<div><strong>Nemotron Root-Cause Diagnosis:</strong> ' + escapeHtml(diag.headline || '') + '</div>' +
           (causesHtml ? ('<ul style="margin:6px 0; padding-left:18px;">' + causesHtml + '</ul>') : '') +
           '<div style="color:#bae6fd; font-size:12px;">' + escapeHtml(diag.why_axe_alone_is_not_enough || '') + '</div>' +
         '</div>';
@@ -1273,7 +1280,7 @@
       rb.style.display = 'block';
       rb.textContent = 'Replaying recorded run (' + (payload.recorded_at_kst || state.run.created_at_kst || 'recorded') + ') — Run ID: ' + state.run.run_id + ' · Click any version pill (v0–v8) or scene button to inspect.';
       setStepState(1, 'done (58 baseline violations)', 'done');
-      setStepState(2, 'done (gemini-4-argon + gemini-3.8-flash)', 'done');
+      setStepState(2, 'done (' + (state.models ? state.models.FIX + ' + ' + state.models.ASSIST : 'Nemotron') + ')', 'done');
       setStepState(3, 'done (58 → 0 violations)', 'done');
       setStepState(4, 'done (0 handoffs)', 'done');
       setStepState(5, 'Approved & active in /preview', 'done');
