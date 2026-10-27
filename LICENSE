@@ -19,8 +19,3 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
-
----
-Third-party: static/axe.min.js is axe-core by Deque Systems, Inc., licensed under
-the Mozilla Public License 2.0 (https://github.com/dequelabs/axe-core/blob/develop/LICENSE).
-It is vendored unmodified and keeps its own license.

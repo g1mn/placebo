@@ -145,7 +145,7 @@ node bench/record_replay.mjs replays/my-run.json http://127.0.0.1:8080          
 
 ## Credits and licenses
 
-- Placebo is MIT-licensed ([LICENSE](LICENSE)).
+- Placebo is MIT-licensed ([LICENSE](LICENSE)); third-party notices are in [NOTICE](NOTICE).
 - [axe-core](https://github.com/dequelabs/axe-core) v4.14.0 by Deque Systems runs in the browser (MPL-2.0, header kept in `static/axe.min.js`).
 - The real-template fixture `inputs/aviato/` is [themefisher/aviato-bootstrap](https://github.com/themefisher/aviato-bootstrap) (MIT, license kept, scripts stripped).
 - The product images were generated for the Oct 16 version.

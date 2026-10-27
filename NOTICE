@@ -1,0 +1,7 @@
+Placebo is MIT-licensed (see LICENSE).
+
+Third-party: static/axe.min.js is axe-core by Deque Systems, Inc., licensed under
+the Mozilla Public License 2.0 (https://github.com/dequelabs/axe-core/blob/develop/LICENSE).
+It is vendored unmodified and keeps its own license.
+
+inputs/aviato/ is themefisher/aviato-bootstrap (MIT); its LICENSE is kept in inputs/aviato/LICENSE.
