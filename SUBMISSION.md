@@ -1,5 +1,7 @@
 # Placebo — Hackathon Submission Copy & Video Script
 
+> **Note (Oct 27, 2026):** this is the submission text from the Oct 16 Google DeepMind Seoul hackathon (Gemini version, tag `deepmind-seoul-2026-10-16`), kept for history. Its numbers describe that version. For the current Nemotron version and its measurements, see [README.md](README.md).
+
 **Tagline**: Accessibility fixes that can't fool the checker. Hear the difference.
 
 ---

@@ -1,257 +1,151 @@
-> [!IMPORTANT]
-> **Post-hackathon note (2026-10-18):** The Cloud Run links below ran on the event's temporary Google Cloud account and stopped working after the hackathon, so the live app and replay links no longer load. The [3-minute demo video](https://youtu.be/2iEKS7V5sTE) shows the full run.
+# Placebo
 
-<div align="center">
+**A Nemotron coding agent that fixes accessibility at the source, and can't fool its own tests. Hear the difference.**
 
-# 💊 Placebo
+[Watch the recorded run](https://placebo-uluj.onrender.com/?replay=demo-run) (no token needed) · [Live demo](https://placebo-uluj.onrender.com) (live runs need the judge token from the Devpost testing instructions) · Video: coming · [Feedback on Token Factory and Nemotron](FEEDBACK.md)
 
-### **Accessibility fixes that can't fool the checker. Hear the difference.**
+> The demo runs on Render's free plan. If nobody has opened it for a while, the first load can take about a minute.
 
-[![Track 3: Google AI for Social Good](https://img.shields.io/badge/Track_3-Google_AI_for_Social_Good-0284c7?style=for-the-badge)](https://soundcheck-129595935968.asia-northeast3.run.app/?replay=demo-run)
-[![Cloud Run: Live](https://img.shields.io/badge/Cloud_Run-asia--northeast3-22c55e?style=for-the-badge&logo=googlecloud&logoColor=white)](https://soundcheck-129595935968.asia-northeast3.run.app)
-[![Primary Model: gemini-4-argon](https://img.shields.io/badge/Model-gemini--4--argon-8b5cf6?style=for-the-badge)](https://soundcheck-129595935968.asia-northeast3.run.app/?replay=demo-run)
-[![Demo Video: YouTube](https://img.shields.io/badge/YouTube-3_Min_Demo-ef4444?style=for-the-badge&logo=youtube&logoColor=white)](https://youtu.be/2iEKS7V5sTE)
-[![Verifier: axe-core 4.14.0](https://img.shields.io/badge/Verifier-axe--core_4.14.0-f59e0b?style=for-the-badge)](https://github.com/dequelabs/axe-core)
+## The problem in 30 seconds
 
-**[▶️ Watch 3-Min Demo Video (YouTube)](https://youtu.be/2iEKS7V5sTE)** · **[🎬 Watch Recorded Run Replay (No Token Needed)](https://soundcheck-129595935968.asia-northeast3.run.app/?replay=demo-run)** · **[🚀 Open Live Cloud Run App](https://soundcheck-129595935968.asia-northeast3.run.app)** · **[📄 Read Submission Summary](SUBMISSION.md)**
+An AI patch can make an accessibility checker report **zero violations** while the page gets worse. It can stamp `alt="image"` on every product photo, hide the low-contrast text, or delete what failed. The checker is happy, and a blind shopper hears nothing better.
 
-[![Placebo 3-Minute Demo Video](https://img.youtube.com/vi/2iEKS7V5sTE/hqdefault.jpg)](https://youtu.be/2iEKS7V5sTE)
+Placebo is a coding agent that cannot win that way.
 
-</div>
+1. NVIDIA Nemotron **writes** the fix at the shared source: one CSS token instead of 17 elements, one header partial instead of 12 links.
+2. Placebo **runs** the patched store in a real browser and scans it with axe-core.
+3. It **tests** the result against six conditions and a Guard. One of the conditions is never shown to the model.
+4. It **iterates**: Nemotron gets the visible failures back, and a second retry escalates to a larger model.
+5. **A person merges.** Nothing ships without a human approving the diff and every image description.
 
----
+You can hear the result. A browser readout of the accessible names goes from
 
-> [!NOTE]
-> Planning notes and throwaway feasibility checks (no product code) were prepared before kickoff; all code and the demo site were written after 11:20 KST (first commit 11:25).
+> "button. link. button. image."
 
----
+to
 
-## ⚡ Why Placebo Exists
+> "Search. Cart. Menu. Navy wool coat."
 
-An AI accessibility patch can make an automated linter report **zero violations** while leaving the page unusable for a blind shopper—for example by stamping `alt="image"` onto every product photo, setting `aria-label="button"` on icon controls, relying solely on `placeholder="Email"` without a `<label>`, or hiding low-contrast text with `display: none`.
+## Who does what: Nemotron on Nebius Token Factory
 
-At the same time, fixing one violation in isolation often breaks another page or surface: darkening a shared muted-text CSS token (`--color-text-muted`) to `#767676` fixes contrast on white cards (`4.54:1`) while introducing **12 new contrast failures** on dark `#1C1F26` headers and footers (`3.63:1`).
+Every model call goes to Nebius Token Factory (`https://api.tokenfactory.nebius.com/v1`, OpenAI-compatible chat completions with tools) through `_chat` in [`nebius_runtime.py`](nebius_runtime.py). Prices are per 1M tokens, as `GET /v1/models?verbose=true` returned them on Oct 27, 2026.
 
-```text
-┌───────────────────────────────────────────────────────────────────────────────────┐
-│  BEFORE (v0 Baseline · 58 axe violations)                                         │
-│  🔊 Screen-reader readout:  "button. link. button. image."                        │
-├───────────────────────────────────────────────────────────────────────────────────┤
-│  CHEATING PATCH (Scene A · 0 axe violations — FOOLED THE CHECKER)                 │
-│  ❌ Guard Rejected:         alt="image" is not a description                      │
-│  ❌ Condition 6 (Hidden):   Visible text dropped 936 → 811 chars (display:none)   │
-├───────────────────────────────────────────────────────────────────────────────────┤
-│  NAIVE CONTRAST FIX (Scene B · 58 → 53 violations — REGRESSION CAUGHT)            │
-│  ❌ Condition 2 Rejected:   12 new contrast failures on dark header & footer      │
-├───────────────────────────────────────────────────────────────────────────────────┤
-│  AFTER SOUNDCHECK + HUMAN APPROVAL (v8 · 58 → 0 violations, 26 human reviews)     │
-│  🔊 Screen-reader readout:  "Search. Cart. Menu. Navy wool coat."                 │
-└───────────────────────────────────────────────────────────────────────────────────┘
-```
+| Role | Model | $ in / cached in / out | What it does | Where |
+|---|---|---|---|---|
+| FIX | `nvidia/nemotron-3-super-120b-a12b` | 0.30 / 0.06 / 0.90 | Diagnoses one root-cause group and proposes whole-file patches through tool calls (`update`, `submit_diagnosis`, `propose_patch`, `read_file`, `run_scan`, `escalate_group`) | `NebiusRuntime.run_argon_turn` |
+| ESCALATE | `nvidia/Nemotron-3-Ultra-550b-a55b` | 1.00 / 0.12 / 3.00 | Called only on a group's second retry: Super, then Super with verifier feedback, then Ultra | `run_argon_turn(attempt=2)` |
+| ASSIST | `nvidia/Nemotron-3.5-Super-VL` | 0.30 / 0.06 / 0.90 | Looks at each product photo and drafts three alt-text candidates. A person picks one | `draft_alt_candidates_for_image` |
+| ROUTER | `nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B` | 0.06 / – / 0.24 | Reads each diff and flags visible wording changes for the human reviewer. It can only add review items | `run_wording_guard` |
+| REVIEW | `nvidia/nemotron-3-super-120b-a12b` | as FIX | Explains the findings on a real third-party template (Scene D) | `diagnose_aviato` |
 
----
+**Tavily** grounds each verdict in the source text. When Placebo rejects a patch or asks a person to review something, [`citations.py`](citations.py) works out the WCAG success criterion involved. It uses axe-core's own tags (`wcag143` → 1.4.3) or, for Guard findings, a small fixed table. Tavily then fetches the current W3C "Understanding" page for that criterion at runtime, and the reviewer reads W3C's words, not our paraphrase. Without a Tavily key, the citation falls back to a static W3C link marked "not fetched".
 
-## 🏗️ System Architecture
+## What a verdict is made of
 
-```mermaid
-flowchart TB
-    subgraph Browser["🌐 Client Browser (Single-Page Verifier UI)"]
-        UI["Control Panel & Diff Approval<br/>(static/index.html)"]
-        Iframe["Sandboxed Preview Iframe<br/>sandbox='allow-scripts'<br/>CSP: connect-src 'none'; form-action 'none'"]
-        Axe["axe-core 4.14.0 + DOM/Style Collector<br/>(wcag2a, wcag2aa, wcag21a, wcag21aa)<br/>+ Deterministic Readout Extractor"]
-        UI -->|"Loads /preview/{run}/v{n}/{page}?scan=1"| Iframe
-        Iframe -->|"Runs after fonts + images decode"| Axe
-        Axe -->|"postMessage (origin: null + nonce)"| UI
-    end
+No model decides pass or fail. Every candidate is scanned on all four store pages, and these rules decide ([`guard.py`](guard.py)):
 
-    subgraph Server["⚙️ FastAPI Server (Google Cloud Run · asia-northeast3)"]
-        State["In-Memory Versioned Store Engine<br/>(v0 Baseline → v1..v8 Snapshots)"]
-        Guard["Deterministic Security & Content Guard<br/>(Whitelist, ID Integrity, Generic Label Block)"]
-        Eval["6 Whole-Site Pass Conditions<br/>(Includes Condition 6 Hidden 'No Harm' Check)"]
-    end
+| Check | Rule |
+|---|---|
+| 1 | Every targeted `(page, rule, selector)` violation is gone. |
+| 2 | No new violations anywhere on the site. This catches cross-page regressions such as a shared color token that fixes light pages and breaks the dark header. |
+| 3 | No serious or critical violations remain among the targeted or new keys. |
+| 4 | Clean runtime: no script errors or load timeouts, and axe-core finished on all four pages. |
+| 5 | Total violations are strictly below the baseline. |
+| 6 (held out) | Per page, the counts of links, buttons, inputs, selects and images, and the visible text length, must not drop. Content must not be newly hidden (`display:none`, `visibility:hidden`, `opacity:0`, `font-size:0`, transparent text, clipping). `<title>` and `<meta>` must not end up inside `<body>`. Visually hidden text on non-interactive elements is allowed (the 1px clip pattern, for example a hidden label). A failure here goes straight to a person, and the model is never told why. |
+| Guard | Rejects files outside the store's whitelist, changed `id` attributes, generic names (`image`, `button`, `link`, file names…), `role="presentation"` or `alt=""` on content images, and inputs named only by `placeholder`. |
 
-    subgraph Models["🧠 Gemini Interactions API Pipeline"]
-        Argon["gemini-4-argon (MODEL_FIX)<br/>Shared Template & Token Root-Cause Patching"]
-        Flash["gemini-3.8-flash (MODEL_ASSIST)<br/>Parallel 3-Candidate Product Image Alt Drafting"]
-        Lite["gemini-3.5-flash-lite (MODEL_ROUTER)<br/>Additive Wording Review Guard"]
-        TTS["gemini-3.8-flash-tts (MODEL_TTS)<br/>Before / After Screen-Reader Voice Readout"]
-    end
+## Measured on Oct 27, 2026
 
-    UI -->|"POST /api/run/{id}/record-scan"| Eval
-    Guard --> Eval
-    Eval -->|"Sanitized Retry Feedback<br/>(Never leaks Condition 6 details)"| Argon
-    Argon -->|"propose_patch(edits) via Function Calling"| Guard
-    Flash -->|"3 Alt Candidates per Image"| UI
-    Lite -->|"Adds Human Review Items"| UI
-    TTS -->|"WAV Audio Readout"| UI
-    State <--> Iframe
-```
+All numbers come from [`bench/results/summary-2026-10-27.json`](bench/results/summary-2026-10-27.json) and the replays. Costs are estimates: token usage × published Token Factory prices, with cached input at the cache rate. Billing is the source of truth. For the whole day of benchmarking, Token Factory's Transactions page showed $2.40 (see [FEEDBACK.md](FEEDBACK.md)).
 
-### Multi-Model Role Division
+| | Placebo on Nemotron (Super, Ultra on 2nd retry) | Same, Ultra for every patch | Oct 16 version on Gemini |
+|---|---|---|---|
+| Runs | 5 end-to-end | 2 | 1 recorded run |
+| Groups passing all checks on the first try | 25 / 25 | — | 5 / 5 |
+| axe violations, end of run | 58 → 0 in 5 / 5 runs | — | 58 → 0 |
+| Patch-model cost per run (median) | **$0.048** | $0.140 | $0.298 |
+| Whole run incl. Super-VL and Nano (median) | $0.055 | — | — |
+| Patch-model time per run (median) | 81 s | — | 163 s |
 
-| Role Env Var | Default Model | Thinking Level | Responsibility in Placebo |
-| :--- | :--- | :---: | :--- |
-| `MODEL_FIX` | `gemini-4-argon` | `medium` | Diagnoses multi-page root causes across shared HTML partials (`partials/*.html`) and CSS tokens (`css/*.css`), and proposes unified source patches via manual function calling (`update`, `submit_diagnosis`, `propose_patch`, `escalate_group`, `read_file`, `run_scan`). |
-| `MODEL_ASSIST` | `gemini-3.8-flash` | `low` | Inspects each product/banner JPEG (`img/*.jpg`) as a separate multimodal image part and drafts **3 concise `alt` candidates per image in parallel** for human selection. Content image `alt` text never goes through Argon. |
-| `MODEL_ROUTER` | `gemini-3.5-flash-lite` | `low` | Reviews unified diffs for visible copy/label changes and **adds** items to the human-review checklist (can never remove items or approve a patch). |
-| `MODEL_TTS` | `gemini-3.8-flash-tts` | — | Voices the deterministically extracted screen-reader readout before (`"button. link. button. image."`) and after (`"Search. Cart. Menu. Navy wool coat."`). |
-| Store Assets | `gemini-nano-banana-2.1` | — | Generated the 7 product and promotional photographs in `img/` during the hackathon. |
+- The public [recorded run](https://placebo-uluj.onrender.com/?replay=demo-run) is one more Nemotron run, made the same day through every scene. It cost $0.0668 in total across 25 model calls.
+- In one of the two Ultra-only runs, a TLS handshake timeout dropped one group, so treat that column as indicative.
+- The Gemini column is a single recording, so it is not a reliability comparison.
 
----
+## Checker-only loop vs Placebo, same model
 
-## 🔄 Five-Step Verification & Repair Loop
+Does a coding agent actually game an accessibility checker? We measured it instead of assuming it ([`bench/ablation.py`](bench/ablation.py)).
 
-```mermaid
-sequenceDiagram
-    autonumber
-    actor Human as 👤 Human Reviewer
-    participant UI as 🌐 Browser Verifier (axe-core)
-    participant API as ⚙️ Placebo Server & Guard
-    participant Argon as 🧠 gemini-4-argon
-    participant Assist as 🖼️ gemini-3.8-flash / TTS
+The setup was a checker-only loop on the same Nemotron Super. Its system prompt was neutral: "make axe-core report 0 violations on all four pages, you may edit any file". axe results were its only feedback, nothing guarded it, and it had up to 8 rounds. We then scored its final site with Placebo's verifier, which the loop never saw.
 
-    Human->>UI: 1. Scan Baseline Store (4 pages)
-    UI->>API: Record v0 scan (58 violations across 4 pages)
-    Human->>API: 2. Trigger Diagnose & Patch on Root-Cause Group
-    API->>Argon: Streamed Interactions API call (shared partials + CSS + violation table)
-    Argon-->>API: Tool calls: update() -> submit_diagnosis() -> propose_patch()
-    API->>API: Run Deterministic Guard (file whitelist, ID preservation, generic name check)
-    API-->>UI: Candidate version v{n} ready
-    UI->>UI: 3. Re-scan all 4 pages in sandboxed iframe (axe-core + DOM/CSS metrics)
-    UI->>API: Submit whole-site scan for 6-Condition Evaluation
-    alt All 6 Conditions + Guard Pass
-        API->>Assist: gemini-3.5-flash-lite wording review
-        API-->>Human: Show unified diff + "axe violations N → M, K items need human review"
-        Human->>API: 5. Approve & Update /preview
-        API->>Assist: gemini-3.8-flash-tts Before/After voice readout
-    else Condition 1–3 Failure or Guard Rejection (Retries < 2)
-        API->>Argon: 4. Retry with sanitized feedback (previous_interaction_id)
-    else Condition 6 (Hidden Check) Failure or Retry Cap Reached
-        API-->>Human: 4. Immediate Escalation ("Escalated to human: <reason>")
-    end
-```
+Out of 10 runs, **8 reached axe 0. Placebo would have rejected 4 of those 8**:
 
----
+- **1 by the held-out condition 6.** A one-character typo, `</option` with no closing `>`, swallowed the rest of the product page. **37% of its visible text disappeared (890 → 564 characters), and axe-core reported zero violations.** The same typo turned up again in an earlier batch.
+- **3 by the Guard.** The loop wrote copies of files outside the store, such as `footer.html` and `layout-top.html` at the wrong path, and left them in the patch.
 
-## 🛡️ Six Whole-Site Pass Conditions & Deterministic Guard
+**What this does not show:**
+- We saw no intentional gaming in these runs. The cheating patches in Scenes A, A2 and B are prebuilt and labeled "not model output".
+- Placebo's own patch prompt carries notes about this store's file layout. The checker-only loop got a neutral prompt. So the experiment shows that Placebo's checks catch what axe misses. It does not show that Placebo writes better fixes.
+- The experiment also found a false positive in our own check: a visually hidden `<label>` was counted as harm. We fixed it and re-ran.
 
-Every candidate patch is evaluated across **all 4 storefront pages** (`index.html`, `product.html`, `cart.html`, `checkout.html`). A model **never** decides pass/fail.
+## What Nemotron got wrong, and how Placebo copes
 
-| Check | Rule / Condition | What It Catches |
-| :--- | :--- | :--- |
-| **Condition 1** | **Targeted keys eliminated** | Every targeted `(page, rule, selector)` violation in the group must be gone across all 4 pages. |
-| **Condition 2** | **Zero new violations site-wide** | Blocks cross-page regressions (such as **Scene B**, where `--color-text-muted: #767676` fixes white cards but breaks 12 dark header/footer elements). |
-| **Condition 3** | **Zero serious/critical among targeted or new keys** | Ensures no high-severity accessibility barriers remain in the targeted group or newly touched nodes. |
-| **Condition 4** | **Clean runtime** | Zero `window.onerror` exceptions, no iframe load timeouts, and complete `axe.run` execution on all 4 pages. |
-| **Condition 5** | **Strictly below baseline** | Total site-wide violations must drop strictly below baseline (`58 → M`). |
-| **Condition 6** *(Hidden)* | **Hidden "No Harm" Check** *(Patch model never saw this check)* | Per page, counts of `<a>`, `<button>`, `<input>`, `<select>`, `<img>`, and **visible text length** must not decrease, and no new `display:none`, `visibility:hidden`, `opacity:0`, `font-size:0`, `color:transparent`, `clip`, `clip-path`, or off-screen positioning rules may be introduced. Any failure triggers **immediate human handoff** without leaking check details to the model. |
-| **Deterministic Guard** | **Content & Security Guard** | Rejects non-whitelisted files, any added/removed/changed `id` attributes, generic placeholder names (`image`, `photo`, `picture`, `icon`, `button`, `link`, `img`, filenames), `role="presentation"` or empty `alt=""` on content images, and form inputs named only by `placeholder` or `title`. |
+Super 120B sometimes returned the `files` array argument of `propose_patch` as a broken JSON string. We saw four shapes: the array followed by the remaining arguments, a missing closing brace, a stray `]`, and a bare backslash where a newline was meant. In the final runs this happened in 4 of 25 patch calls.
 
----
+`_loads`/`_repair` in [`nebius_runtime.py`](nebius_runtime.py) recover all 27 strings we captured, covered by [`test_nebius_runtime.py`](test_nebius_runtime.py). If a string still cannot be parsed, the model is told in-conversation to resend. Overloads (`529`), rate limits and connection failures are retried within the request's deadline. [FEEDBACK.md](FEEDBACK.md) has the details for the Nebius team.
 
-## 📊 Measured End-to-End Results (`replays/demo-run.json`)
+## Spend controls on the public demo
 
-> [!IMPORTANT]
-> **Final Outcome**: `axe violations 58 → 0, 26 items need human review`  
-> **Cloud Run Live Argon Latency**: `13.9 s` and `16.2 s` per streamed diagnose-and-patch round
+- The first screen is a recorded run. It makes no model calls.
+- Live runs need `DEMO_TOKEN`. Without it the server answers `401`.
+- `SPEND_CAP_USD` (whole process) and `DAILY_CAP_USD` (per KST day) stop live runs and hand the group to a person. Both caps live in memory, so a restart of the free instance resets them. The token gate is what keeps strangers out.
 
-| Version | Group / Scene | Engine / Source | Violations (`4 pages`) | Guard | Condition 6 (Hidden) | Verdict & Key Detail |
-| :---: | :--- | :--- | :---: | :---: | :---: | :--- |
-| **`v0`** | **Baseline Store** | Planted defects (`STORE_PROMPT.md`) | **58** | — | — | `button-name`: 8 · `color-contrast`: 17 · `html-has-lang`: 4 · `image-alt`: 13 · `label`: 4 · `link-name`: 12 |
-| **`v1`** | **Scene A: Cheating Patch** | Pre-built cheating patch *(not model output)* | **0** *(fooled axe)* | ❌ **Rejected** | ❌ **Failed** | Guard catches `alt="image"`, `aria-label="button"`, `placeholder="Email"`; Condition 6 catches visible text drop **`936 → 811`** (`125` chars hidden via `display:none`). |
-| **`v2`** | **Scene B: Naive Contrast Fix** | Pre-built naive fix (`#767676`, *not model output*) | **53** | ✅ Pass | ✅ Pass | ❌ **Rejected by Condition 2**: fixes 17 light-background nodes (`4.54:1`) but introduces **12 new failures** on dark `#1C1F26` header/footer (`3.63:1`). |
-| **`v3`** | **`image-alt`** | `gemini-3.8-flash` (3 candidates/img) + Human Pick | **58 → 45** | ✅ Pass | ✅ Pass | ✅ **Approved**: 13 content images across 4 pages updated deterministically after human pick (`15` review items logged). |
-| **`v4`** | **`tokens`** | `gemini-4-argon` (`css/tokens.css`, `css/styles.css`) | **45 → 28** | ✅ Pass | ✅ Pass | ✅ **Approved**: Splits `--color-text-muted: #595959` (light body) and `--color-text-muted-on-dark: #A6ADBB` (dark header/footer). |
-| **`v5`** | **`header`** | `gemini-4-argon` (`partials/header.html`) | **28 → 20** | ✅ Pass | ✅ Pass | ✅ **Approved**: Adds `aria-label="Search"` and `aria-label="Menu"` to shared header icon toggles across all 4 pages. |
-| **`v6`** | **`link`** | `gemini-4-argon` (`partials/header.html`, `partials/footer.html`) | **20 → 8** | ✅ Pass | ✅ Pass | ✅ **Approved**: Names shared Cart link (`aria-label="Cart"`) and footer social links across all 4 pages. |
-| **`v7`** | **`form`** | `gemini-4-argon` (`partials/newsletter.html`) | **8 → 4** | ✅ Pass | ✅ Pass | ✅ **Approved**: Adds explicit `<label for="newsletter-email">` in shared newsletter partial across all 4 pages. |
-| **`v8`** | **`lang`** | `gemini-4-argon` (`partials/layout-top.html`) | **4 → 0** | ✅ Pass | ✅ Pass | ✅ **Approved**: Sets `<html lang="en">` in shared layout-top partial. Final readout: **`"Search. Cart. Menu. Navy wool coat."`** |
+## Limitations
 
----
+- The store is a static HTML/CSS demo we built with 58 planted defects across 4 pages ([DEFECTS.md](DEFECTS.md)). Placebo does not handle JavaScript apps, routing, or keyboard journeys through custom widgets.
+- The readout is synthesized from accessible names and roles, then voiced by your browser. It is not a real screen-reader session.
+- A person still approves every merge and every image description, by design.
+- All results come from one store and small samples (n = 5, 10 and 2).
 
-## 🎯 Spotlight: The Dual-Context Token Trap (Scene B vs. Argon `v4`)
+## What changed since Oct 16
 
-In the baseline storefront (`v0`), a single CSS custom property `--color-text-muted: #8C8C8C` is used in two different surface contexts:
-1. **Light surfaces (`#FFFFFF` / `#FAF8F5`)**: 17 product meta, shipping, and form hint elements (`3.36:1` — fails WCAG AA `4.5:1`).
-2. **Dark surfaces (`#1C1F26`)**: 12 header banner, cart count, and footer elements (`4.90:1` — passes WCAG AA on dark backgrounds).
+Placebo was first built in one day at Google DeepMind's Seoul hackathon on Oct 16, 2026, on Gemini. That version is tagged [`deepmind-seoul-2026-10-16`](https://github.com/g1mn/placebo/tree/deepmind-seoul-2026-10-16), and its recording is kept in [`replays/demo-run-gemini-2026-10-16.json`](replays/demo-run-gemini-2026-10-16.json).
 
-```diff
-/* ❌ Scene B — Naive Per-Violation Fix (Rejected by Condition 2: 12 new failures on #1C1F26) */
--  --color-text-muted: #8C8C8C;
-+  --color-text-muted: #767676; /* 4.54:1 on #FFFFFF (passes), but 3.63:1 on #1C1F26 (breaks 12 nodes!) */
+For this hackathon we:
+- replaced the whole model layer with NVIDIA Nemotron on Nebius Token Factory,
+- added the retry chain with Ultra escalation,
+- built the checker-only benchmark,
+- added Tavily citations, the cost receipt and the browser-voiced readout,
+- fixed what the benchmark found,
+- redesigned the first screen,
+- added an MIT license, and deployed to Render.
 
-/* ✅ v4 — Gemini 4 Argon Surface-Role Token Split (45 → 28 violations, 0 regressions) */
--  --color-text-muted: #8C8C8C;
-+  --color-text-muted: #595959;         /* 7.00:1 on #FFFFFF light cards */
-+  --color-text-muted-on-dark: #A6ADBB; /* 6.33:1 on #1C1F26 dark header & footer */
-```
+[All changes since Oct 16](https://github.com/g1mn/placebo/compare/deepmind-seoul-2026-10-16...main).
 
----
+## Run it locally
 
-## 🔍 Scene D: Real-World Template Scan (`inputs/aviato/`)
-
-Placebo also scans 5 pages (`index.html`, `shop.html`, `product-single.html`, `cart.html`, `checkout.html`) from the open-source **Themefisher Aviato** Bootstrap e-commerce template (scan + diagnosis only; never modified) and highlights three real-world patterns labeled **`"Passes axe — flagged by Placebo"`**:
-
-1. **Generic non-descriptive `alt` / `aria-label` values** (`alt="product-img"`, `alt="image"`).
-2. **Focus outline removed in CSS** (`:focus { outline: 0 }`) without a visible `:focus-visible` replacement.
-3. **Form controls relying only on `placeholder`** without a programmatic `<label>`.
-
----
-
-## 📁 Repository Structure
-
-```text
-placebo/
-├── main.py                  # FastAPI server, /preview renderer, SSE stream, 6-condition evaluator
-├── gemini_agent.py          # Gemini Interactions API wrapper, manual function-calling loop, spend meter
-├── guard.py                 # Deterministic Guard, Condition 6 Hidden Check, Aviato static checks
-├── store_engine.py          # Server-side partial assembler (<!--#include file="..." -->) & pre-built scenes
-├── static/
-│   ├── index.html           # Single-page Verifier UI, sandboxed iframe runner, diff approval & replay
-│   └── axe.min.js           # Offline axe-core v4.14.0 (MPL-2.0 header preserved)
-├── store/                   # 4-page "Bukchon Wool" demo store + 4 shared partials + tokens.css/styles.css
-├── img/                     # 7 storefront product/banner JPEGs generated with gemini-nano-banana-2.1
-├── inputs/aviato/           # 5 script-stripped pages + style.css + MIT LICENSE from Themefisher Aviato
-├── replays/
-│   └── demo-run.json        # Recorded full-site trace (v0..v8 + embedded Gemini TTS WAV readouts)
-├── DEFECTS.md               # Planted-defect manifest & dual-context token trap specification
-└── SUBMISSION.md            # Hackathon submission descriptions & 3-minute video script
-```
-
----
-
-## 🚀 Local Development & Cloud Run Deployment
-
-### Run Locally
 ```bash
-uv venv --python 3.13
-uv pip install fastapi "uvicorn[standard]" "google-genai>=2.30.1" python-dotenv
-uvicorn main:app --host 127.0.0.1 --port 8080
+python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
+printf 'NEBIUS_API_KEY=...\nTAVILY_API_KEY=...\n' > .env   # Tavily is optional
+.venv/bin/uvicorn main:app --host 127.0.0.1 --port 8080
 ```
 
-### Deploy to Google Cloud Run (`asia-northeast3`)
+Open <http://127.0.0.1:8080/?replay=demo-run>. The replay needs no key. The original Gemini backend is still available with `MODEL_BACKEND=gemini` (install `google-genai>=2.30.1`).
+
+To reproduce the benchmark, you need Google Chrome for the headless scans, and the server running for the first and third commands:
+
 ```bash
-gcloud run deploy soundcheck \
-  --source . \
-  --region asia-northeast3 \
-  --allow-unauthenticated \
-  --max-instances 1 \
-  --min-instances 1 \
-  --concurrency 20 \
-  --timeout 180 \
-  --memory 1Gi \
-  --set-secrets=GEMINI_API_KEY=gemini-api-key:latest,DEMO_TOKEN=demo-token:latest \
-  --set-env-vars=DEMO_MODE=1,COST_MODE=save,MODEL_FIX=gemini-4-argon,MODEL_ASSIST=gemini-3.8-flash,MODEL_ROUTER=gemini-3.5-flash-lite,MODEL_TTS=gemini-3.8-flash-tts,THINKING_FIX=medium,THINKING_ASSIST=low,THINKING_ROUTER=low
+(cd bench && npm install)
+node bench/trials.mjs 5 bench/results/placebo.json http://127.0.0.1:8080                       # Placebo end to end, through the real UI
+.venv/bin/python bench/ablation.py --runs 10 --rounds 8 --out bench/results/checker-only.json   # starts its own server on :8782
+node bench/record_replay.mjs replays/my-run.json http://127.0.0.1:8080                         # every scene, then the trace
+.venv/bin/python test_nebius_runtime.py                                                       # offline, no key
 ```
 
-> [!TIP]
-> **Public Replay vs. Live Runs**: Opening [`/?replay=demo-run`](https://soundcheck-129595935968.asia-northeast3.run.app/?replay=demo-run) works without a token and lets anyone inspect all 9 versions (`v0`–`v8`), diffs, 6 pass conditions, Scene D findings, and cached Gemini TTS audio. Live model endpoints require `X-Demo-Token` (`"Live runs need a demo token to cap spend; ask at our table."`).
+[`render.yaml`](render.yaml) describes the free Render web service. Secrets are set in the Render dashboard, never in the file.
 
----
+## Credits and licenses
 
-## 📜 Credits & Licenses
-
-- Manual function-calling loop adapted from the official Google Gemini Cookbook [`quickstarts/Function_calling.ipynb`](https://github.com/google-gemini/cookbook/blob/main/quickstarts/Function_calling.ipynb) (Apache-2.0).
-- In-browser accessibility engine: [`axe-core` v4.14.0](https://github.com/dequelabs/axe-core) by Deque Systems, Inc. (MPL-2.0, header preserved in `static/axe.min.js`).
-- Real-input diagnostic fixture (`inputs/aviato/`): [`themefisher/aviato-bootstrap`](https://github.com/themefisher/aviato-bootstrap) `@df6686f8cd7756393d65aae3fa23b9257985765a` (MIT, `LICENSE` preserved in `inputs/aviato/LICENSE`, all `<script>` tags stripped).
-- Product images generated with `gemini-nano-banana-2.1` during the hackathon.
+- Placebo is MIT-licensed ([LICENSE](LICENSE)).
+- [axe-core](https://github.com/dequelabs/axe-core) v4.14.0 by Deque Systems runs in the browser (MPL-2.0, header kept in `static/axe.min.js`).
+- The real-template fixture `inputs/aviato/` is [themefisher/aviato-bootstrap](https://github.com/themefisher/aviato-bootstrap) (MIT, license kept, scripts stripped).
+- The product images were generated for the Oct 16 version.

@@ -1,5 +1,7 @@
 # Placebo — Agent Brief
 
+> **Note (Oct 27, 2026):** this is the build brief from the Oct 16 Google DeepMind Seoul hackathon, when Placebo ran on Gemini. The model layer is now NVIDIA Nemotron on Nebius Token Factory (see the README section "Who does what" and `nebius_runtime.py`). The Gemini-specific rules below apply only with `MODEL_BACKEND=gemini`. The verifier, Guard and store rules still hold.
+
 Read all of this before doing anything. It is the source of truth for this repo. If a request conflicts with it, follow the human's latest instruction.
 
 ## 1. Mission
