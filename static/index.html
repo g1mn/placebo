@@ -1364,7 +1364,7 @@
         var hr = (curV.eval.guard && curV.eval.guard.human_review_items) || [];
         reasons.push({
           tag: 'Human',
-          text: (curV.approved ? 'Approved by a human reviewer' : 'Waiting for human approval') +
+          text: (curV.approved ? 'Approved for /preview · a person merges by applying the .patch' : 'Waiting for human approval') +
             (hr.length ? ' · ' + plural(hr.length, 'item') + ' flagged for review' : ''),
           cls: curV.approved ? 'is-good' : ''
         });
