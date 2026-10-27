@@ -3,528 +3,975 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Placebo — Accessibility fixes that can't fool the checker</title>
+  <title>Placebo — a Nemotron accessibility agent that can't fool its own tests</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23fbf7ee'/%3E%3Ctext x='16' y='24' font-size='22' text-anchor='middle' font-family='Georgia,serif' fill='%2317130f'%3E%E2%84%9E%3C/text%3E%3C/svg%3E">
+  <script>
+    // Theme before first paint (dark by default). Storage can throw in private windows.
+    (function() {
+      var t = 'dark';
+      try { t = localStorage.getItem('placebo-theme') || 'dark'; } catch (e) {}
+      document.documentElement.setAttribute('data-theme', t === 'light' ? 'light' : 'dark');
+    })();
+  </script>
   <style>
-    :root {
-      --bg: #0f141c;
-      --panel: #171f2c;
-      --panel-alt: #1e293b;
-      --border: #334155;
-      --text: #f1f5f9;
-      --muted: #cbd5e1;
-      --accent: #38bdf8;
-      --accent-strong: #0284c7;
-      --green: #22c55e;
-      --green-bg: rgba(34, 197, 94, 0.14);
-      --red: #f87171;
-      --red-bg: rgba(248, 113, 113, 0.15);
-      --amber: #fbbf24;
-      --amber-bg: rgba(251, 191, 36, 0.15);
+    /* ---------- Tokens ---------- */
+    :root, :root[data-theme="dark"] {
+      color-scheme: dark;
+      --bg: #13110f;
+      --paper: #1c1916;
+      --paper-2: #24201b;
+      --code-bg: #0f0d0b;
+      --ink: #f3ecdf;
+      --ink-2: #c4b8a5;
+      --rule: #3d362e;
+      --rule-strong: #7d705f;
+      --good: #7ee2a0;
+      --bad: #ff8f80;
+      --warn: #f2cf6b;
+      --info: #9cc7ff;
+      --focus: #8cc8ff;
+      --good-wash: rgba(126, 226, 160, 0.10);
+      --bad-wash: rgba(255, 143, 128, 0.10);
+      --warn-wash: rgba(242, 207, 107, 0.10);
+      --info-wash: rgba(156, 199, 255, 0.10);
+      --pill-cur-bg: #fbf7ee;
+      --pill-cur-ink: #17130f;
+      --pill-cur-ink-2: #574d42;
+      --pill-cur-good: #17663a;
+      --pill-cur-bad: #b42318;
+      --shadow: 0 1px 0 rgba(0, 0, 0, 0.5), 0 18px 40px -18px rgba(0, 0, 0, 0.7);
     }
+    :root[data-theme="light"] {
+      color-scheme: light;
+      --bg: #ece6da;
+      --paper: #fffdf8;
+      --paper-2: #f6f1e6;
+      --code-bg: #f3eee3;
+      --ink: #1a1612;
+      --ink-2: #574d42;
+      --rule: #d4cab8;
+      --rule-strong: #6b5f50;
+      --good: #17663a;
+      --bad: #b42318;
+      --warn: #7a5600;
+      --info: #1f4fa8;
+      --focus: #0b57d0;
+      --good-wash: rgba(23, 102, 58, 0.07);
+      --bad-wash: rgba(180, 35, 24, 0.07);
+      --warn-wash: rgba(122, 86, 0, 0.07);
+      --info-wash: rgba(31, 79, 168, 0.07);
+      --pill-cur-bg: #1a1612;
+      --pill-cur-ink: #fffdf8;
+      --pill-cur-ink-2: #d8cfc0;
+      --pill-cur-good: #7ee2a0;
+      --pill-cur-bad: #ff8f80;
+      --shadow: 0 1px 0 rgba(26, 22, 18, 0.12), 0 18px 36px -22px rgba(26, 22, 18, 0.45);
+    }
+    :root {
+      /* The prescription label is printed paper in both themes */
+      --label-paper: #fbf7ee;
+      --label-ink: #17130f;
+      --label-ink-2: #574d42;
+      --label-hair: #d9cfbd;
+      --label-good: #17663a;
+      --label-bad: #b42318;
+      --label-focus: #0b57d0;
+      /* Auxiliary warning stickers: black ink on bright stock */
+      --st-ink: #17130f;
+      --st-bad: #ff8a7a;
+      --st-good: #7fdd9c;
+      --st-neutral: #f0d36a;
+      --st-info: #a9c8ff;
+      --sans: "Helvetica Neue", Helvetica, Arial, system-ui, sans-serif;
+      --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+      --serif: Georgia, "Times New Roman", Times, serif;
+      /* Aliases kept for inline styles in generated markup */
+      --text: var(--ink);
+      --muted: var(--ink-2);
+      --border: var(--rule);
+      --panel: var(--paper);
+      --panel-alt: var(--paper-2);
+      --accent: var(--info);
+      --green: var(--good);
+      --red: var(--bad);
+      --amber: var(--warn);
+      --green-bg: var(--good-wash);
+      --red-bg: var(--bad-wash);
+      --amber-bg: var(--warn-wash);
+    }
+
+    /* ---------- Base ---------- */
     * { box-sizing: border-box; }
+    html { -webkit-text-size-adjust: 100%; }
     body {
       margin: 0;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      font-family: var(--sans);
       background: var(--bg);
-      color: var(--text);
+      color: var(--ink);
       line-height: 1.5;
       font-size: 14px;
+      -webkit-font-smoothing: antialiased;
     }
-    a { color: var(--accent); }
-    button, input, select {
-      font-family: inherit;
-      font-size: 13px;
+    a { color: var(--info); }
+    code { font-family: var(--mono); font-size: 0.92em; }
+    button, input, select { font-family: inherit; font-size: 13px; }
+    :focus { outline: none; }
+    :focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+    [hidden] { display: none !important; }
+    .visually-hidden {
+      position: absolute !important;
+      width: 1px; height: 1px;
+      margin: -1px; padding: 0; border: 0;
+      overflow: hidden;
+      clip: rect(0 0 0 0);
+      white-space: nowrap;
     }
+    .wrap { max-width: 1320px; margin: 0 auto; padding: 0 24px; }
+    .mono-label {
+      font: 700 11px/1.3 var(--mono);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--ink-2);
+    }
+
+    /* ---------- Buttons ---------- */
     .btn {
       display: inline-flex;
       align-items: center;
-      gap: 6px;
-      padding: 8px 13px;
+      gap: 8px;
+      min-height: 36px;
+      padding: 7px 14px;
       border-radius: 6px;
-      border: 1px solid var(--border);
-      background: var(--panel-alt);
-      color: var(--text);
-      font-weight: 600;
+      border: 1px solid var(--rule-strong);
+      background: var(--paper-2);
+      color: var(--ink);
+      font: 600 13px/1.2 var(--sans);
       cursor: pointer;
       text-decoration: none;
+      transition: border-color 0.12s ease, background-color 0.12s ease;
     }
-    .btn:hover { border-color: var(--accent); }
-    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
-    .btn-primary {
-      background: var(--accent-strong);
-      border-color: var(--accent);
-      color: #fff;
-    }
-    .btn-danger {
-      background: rgba(239, 68, 68, 0.2);
-      border-color: var(--red);
-      color: #fecaca;
-    }
-    .btn-warn {
-      background: rgba(245, 158, 11, 0.2);
-      border-color: var(--amber);
-      color: #fde68a;
-    }
-    .btn-success {
-      background: rgba(34, 197, 94, 0.22);
-      border-color: var(--green);
-      color: #bbf7d0;
-    }
-    .top-bar {
-      background: #0b0f17;
-      border-bottom: 1px solid var(--border);
-      padding: 12px 20px;
+    .btn:hover { border-color: var(--ink); }
+    .btn:disabled { opacity: 0.55; cursor: not-allowed; }
+    .btn-primary { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+    .btn-primary:hover { background: var(--ink-2); border-color: var(--ink-2); }
+    .btn-danger { background: var(--bad-wash); border-color: var(--bad); color: var(--bad); }
+    .btn-warn { background: var(--warn-wash); border-color: var(--warn); color: var(--warn); }
+    .btn-success { background: var(--good-wash); border-color: var(--good); color: var(--good); }
+    .btn-quiet { background: transparent; border-color: var(--rule); min-height: 30px; padding: 4px 10px; font-size: 12px; }
+    .btn-xl { min-height: 50px; padding: 12px 22px; font-size: 15px; font-weight: 700; border-radius: 8px; }
+    .btn-outline { background: transparent; border: 1.5px solid var(--ink); color: var(--ink); }
+    .btn-outline:hover { background: var(--paper-2); }
+    label.btn:focus-within { outline: 3px solid var(--focus); outline-offset: 2px; }
+    .glyph { font-size: 0.85em; }
+
+    /* ---------- Masthead ---------- */
+    .masthead { border-bottom: 1px solid var(--rule); }
+    .topbar { border-bottom: 1px dashed var(--rule); }
+    .topbar-inner {
       display: flex;
       flex-wrap: wrap;
+      align-items: center;
       justify-content: space-between;
+      gap: 6px 16px;
+      padding-top: 5px;
+      padding-bottom: 5px;
+    }
+    .mast-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 14px 40px;
       align-items: center;
-      gap: 12px;
+      padding-top: 14px;
+      padding-bottom: 14px;
     }
-    .brand-title {
-      font-size: 19px;
-      font-weight: 800;
+    .brand-row { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 18px; }
+    .wordmark {
       margin: 0;
-      letter-spacing: -0.02em;
+      font: 800 36px/1 var(--sans);
+      letter-spacing: -0.035em;
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
     }
-    .brand-sub {
-      color: var(--muted);
-      font-size: 13px;
-      margin: 2px 0 0;
+    .wordmark .rx { font: 400 32px/1 var(--serif); color: var(--ink-2); letter-spacing: 0; }
+    .tagline {
+      margin: 8px 0 0;
+      max-width: 100%;
+      font-size: 18px;
+      line-height: 1.35;
+      font-weight: 500;
+      text-wrap: balance;
     }
-    .top-controls {
+    .provider { margin: 0; }
+    .provider .mono-label { color: var(--ink-2); }
+    .primary-actions { display: flex; gap: 12px; align-items: flex-start; }
+    .action { display: flex; flex-direction: column; gap: 5px; }
+    .action-note { margin: 0; font-size: 12px; color: var(--ink-2); max-width: 30ch; }
+    .utility {
       display: flex;
       flex-wrap: wrap;
-      align-items: center;
       gap: 8px;
+      align-items: center;
+      font-size: 12px;
+      color: var(--ink-2);
     }
+    .utility label.field-label { font: 700 11px/1 var(--mono); letter-spacing: 0.1em; text-transform: uppercase; }
+    .token-input {
+      background: var(--code-bg);
+      border: 1px solid var(--rule-strong);
+      color: var(--ink);
+      padding: 6px 10px;
+      border-radius: 6px;
+      width: 140px;
+      min-height: 30px;
+    }
+    .token-input::placeholder { color: var(--ink-2); opacity: 1; }
     .badge {
       display: inline-block;
       padding: 3px 8px;
-      border-radius: 999px;
-      font-size: 12px;
-      font-weight: 600;
-      border: 1px solid var(--border);
-      background: var(--panel-alt);
+      border-radius: 4px;
+      font: 600 12px/1.35 var(--sans);
+      border: 1px solid var(--rule-strong);
+      background: var(--paper-2);
+      color: var(--ink);
     }
-    .badge-green { background: var(--green-bg); border-color: var(--green); color: #86efac; }
-    .badge-red { background: var(--red-bg); border-color: var(--red); color: #fca5a5; }
-    .badge-amber { background: var(--amber-bg); border-color: var(--amber); color: #fde68a; }
-    .badge-blue { background: rgba(56, 189, 248, 0.15); border-color: var(--accent); color: #bae6fd; }
-
+    .badge-green { background: var(--good-wash); border-color: var(--good); color: var(--good); }
+    .badge-red { background: var(--bad-wash); border-color: var(--bad); color: var(--bad); }
+    .badge-amber { background: var(--warn-wash); border-color: var(--warn); color: var(--warn); }
+    .badge-blue { background: var(--info-wash); border-color: var(--info); color: var(--info); }
+    #spend-badge { font-family: var(--mono); font-weight: 500; }
     .replay-banner {
-      background: rgba(56, 189, 248, 0.16);
-      border-bottom: 1px solid var(--accent);
-      padding: 8px 20px;
-      font-weight: 700;
-      color: #e0f2fe;
       display: none;
+      flex: 1 1 auto;
+      font: 500 11.5px/1.4 var(--mono);
+      color: var(--ink-2);
     }
-    .landing-strip {
-      background: var(--panel);
-      border-bottom: 1px solid var(--border);
-      padding: 10px 20px;
+
+    /* ---------- Hero: version strip + prescription label ---------- */
+    .hero { padding-top: 12px; }
+    .hero-head {
       display: flex;
       flex-wrap: wrap;
-      align-items: center;
-      justify-content: space-between;
-      gap: 10px;
+      align-items: baseline;
+      gap: 4px 14px;
+      margin-bottom: 8px;
     }
-    .steps-banner {
-      display: grid;
-      grid-template-columns: repeat(5, 1fr);
-      gap: 8px;
-      padding: 12px 20px;
-      background: #111827;
-      border-bottom: 1px solid var(--border);
+    .hero-head h2 { margin: 0; }
+    .hero-head .hint-btn { margin-left: auto; }
+    .hint-btn {
+      background: none;
+      border: 0;
+      padding: 4px 0;
+      color: var(--ink);
+      font: 600 13px/1.3 var(--sans);
+      text-decoration: underline;
+      text-decoration-color: var(--rule-strong);
+      text-underline-offset: 3px;
+      cursor: pointer;
     }
-    .step-card {
-      background: var(--panel);
-      border: 1px solid var(--border);
+    .hint-btn:hover { text-decoration-color: var(--ink); }
+    .pill-bar { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+    .pill {
+      display: inline-flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 2px;
+      padding: 5px 10px 6px;
       border-radius: 6px;
-      padding: 8px 10px;
+      border: 1px solid var(--rule);
+      background: var(--paper);
+      color: var(--ink);
+      font: 700 12.5px/1.2 var(--sans);
+      text-align: left;
+      cursor: pointer;
     }
-    .step-card.active {
-      border-color: var(--accent);
-      box-shadow: 0 0 0 1px var(--accent);
-    }
-    .step-card.done { border-color: var(--green); }
-    .step-card.failed { border-color: var(--red); }
-    .step-num { font-size: 11px; color: var(--muted); text-transform: uppercase; font-weight: 700; }
-    .step-title { font-weight: 700; margin: 2px 0; font-size: 13px; }
-    .step-status { font-size: 12px; color: var(--muted); }
+    .pill:hover { border-color: var(--rule-strong); }
+    .pill-meta { font: 500 11px/1.2 var(--mono); color: var(--ink-2); white-space: nowrap; }
+    .pill .is-good { color: var(--good); }
+    .pill .is-bad { color: var(--bad); }
+    .pill[aria-pressed="true"] { background: var(--pill-cur-bg); border-color: var(--pill-cur-bg); color: var(--pill-cur-ink); }
+    .pill[aria-pressed="true"] .pill-meta { color: var(--pill-cur-ink-2); }
+    .pill[aria-pressed="true"] .is-good { color: var(--pill-cur-good); }
+    .pill[aria-pressed="true"] .is-bad { color: var(--pill-cur-bad); }
 
+    .rx-label {
+      --focus: var(--label-focus);
+      background: var(--label-paper);
+      color: var(--label-ink);
+      border: 1px solid var(--label-ink);
+      border-radius: 10px;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+    .rx-label a { color: var(--label-ink); }
+    .rx-top {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr) auto;
+      gap: 0 16px;
+      align-items: center;
+      padding: 10px 20px 10px 16px;
+      border-bottom: 2px solid var(--label-ink);
+    }
+    .rx-glyph { font: 400 44px/1 var(--serif); padding-bottom: 4px; }
+    .rx-meta {
+      margin: 0;
+      font: 500 11.5px/1.4 var(--mono);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--label-ink-2);
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 2px;
+      text-align: right;
+    }
+    .rx-meta b { color: var(--label-ink); font-weight: 700; text-transform: none; letter-spacing: 0.02em; }
+    .rx-name { margin: 2px 0 0; font: 800 21px/1.2 var(--sans); letter-spacing: -0.01em; }
+    .rx-sub { margin: 2px 0 0; font-size: 13px; color: var(--label-ink-2); }
+    .rx-sub code { color: var(--label-ink); }
+    .rx-cols { display: grid; grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr) minmax(0, 1.25fr); }
+    .rx-col { padding: 12px 20px 14px; min-width: 0; }
+    .rx-col + .rx-col { border-left: 1px solid var(--label-hair); }
+    .col-label {
+      margin: 0 0 8px;
+      font: 700 11.5px/1.2 var(--mono);
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--label-ink-2);
+    }
+    .big-num {
+      margin: 0;
+      font: 800 48px/1 var(--sans);
+      letter-spacing: -0.03em;
+      font-variant-numeric: tabular-nums;
+      display: flex;
+      align-items: baseline;
+      flex-wrap: wrap;
+      gap: 0 10px;
+    }
+    .num-before { font-size: 26px; font-weight: 600; color: var(--label-ink-2); letter-spacing: -0.01em; }
+    .num-arrow { font-size: 22px; font-weight: 500; color: var(--label-ink-2); }
+    .col-caption { margin: 6px 0 0; font-size: 13px; line-height: 1.4; }
+    .col-caption.is-bad { color: var(--label-bad); font-weight: 600; }
+    .col-foot { margin: 8px 0 0; font-size: 11.5px; line-height: 1.4; color: var(--label-ink-2); }
+    .col-foot.mono { font-family: var(--mono); }
+    .sticker {
+      display: inline-block;
+      padding: 5px 8px 4px;
+      border: 1.5px solid var(--st-ink);
+      border-radius: 4px;
+      background: var(--st-neutral);
+      color: var(--st-ink);
+      font: 800 11.5px/1 var(--sans);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+    .sticker.good { background: var(--st-good); }
+    .sticker.bad { background: var(--st-bad); }
+    .sticker.info { background: var(--st-info); }
+    .sticker-lg { font-size: 22px; padding: 7px 13px 6px; border-width: 2px; letter-spacing: 0.08em; }
+    .axe-sticker { margin-top: 8px; }
+    .reason-list { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 7px; font-size: 13px; line-height: 1.4; }
+    .reason-list li { overflow-wrap: anywhere; }
+    .reason-tag {
+      display: block;
+      font: 700 10.5px/1.3 var(--mono);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--label-ink-2);
+    }
+    .reason-list .is-bad .reason-tag { color: var(--label-bad); }
+    .reason-list .is-good .reason-tag { color: var(--label-good); }
+    .more-link { display: inline-block; margin-top: 8px; font-size: 12.5px; font-weight: 600; }
+    .hear-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 3px 12px;
+      align-items: center;
+      padding: 0 0 8px;
+    }
+    .hear-row + .hear-row { border-top: 1px solid var(--label-hair); padding-top: 8px; }
+    .hear-meta {
+      grid-column: 1 / -1;
+      font: 700 10.5px/1.3 var(--mono);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--label-ink-2);
+    }
+    .hear-text { display: block; font: 700 17px/1.3 var(--sans); quotes: "\201C" "\201D"; overflow-wrap: anywhere; }
+    .hear-row audio { grid-column: 1 / -1; width: 100%; height: 32px; margin-top: 4px; }
+    .btn-label {
+      background: transparent;
+      color: var(--label-ink);
+      border: 1.5px solid var(--label-ink);
+      min-height: 34px;
+      padding: 6px 12px;
+      white-space: nowrap;
+    }
+    .btn-label:hover { background: rgba(23, 19, 15, 0.07); border-color: var(--label-ink); }
+    .btn-label.is-solid { background: var(--label-ink); color: var(--label-paper); }
+    .btn-label.is-solid:hover { background: #3a332b; }
+    .hear-diff { margin: 2px 0 0; font-size: 12.5px; font-weight: 600; }
+    .hear-diff.is-bad { color: var(--label-bad); }
+    .hear-diff.is-good { color: var(--label-good); }
+    .rx-foot {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      gap: 4px 16px;
+      padding: 7px 20px 8px;
+      border-top: 1px dashed var(--label-ink-2);
+      font-size: 12px;
+      color: var(--label-ink-2);
+    }
+
+    /* ---------- Model rail / receipt ---------- */
+    .rail {
+      margin-top: 12px;
+      border: 1px solid var(--rule);
+      border-radius: 10px;
+      background: var(--paper);
+    }
+    .rail-head {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 4px 16px;
+      padding: 10px 18px 8px;
+      border-bottom: 1px solid var(--rule);
+    }
+    .rail-head h2 { margin: 0; font: 800 16px/1.25 var(--sans); }
+    .rail-head h2 .mono-label { margin-left: 8px; }
+    .rail-note { margin: 0; font-size: 12.5px; color: var(--ink-2); }
+    .rail-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .rail-table th {
+      padding: 6px 12px;
+      text-align: left;
+      font: 700 10.5px/1.2 var(--mono);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--ink-2);
+      border-bottom: 1px solid var(--rule);
+    }
+    .rail-table td { padding: 8px 12px; border-bottom: 1px solid var(--rule); vertical-align: baseline; line-height: 1.4; }
+    .rail-table th:first-child, .rail-table td:first-child { padding-left: 18px; }
+    .rail-table th:last-child, .rail-table td:last-child { padding-right: 18px; }
+    .rail-table .num { text-align: right; font-family: var(--mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .role-tag {
+      display: inline-block;
+      padding: 3px 6px 2px;
+      border: 1px solid var(--rule-strong);
+      border-radius: 3px;
+      font: 700 10.5px/1.2 var(--mono);
+      letter-spacing: 0.08em;
+      white-space: nowrap;
+    }
+    .role-tag + .role-tag { margin-left: 4px; }
+    .role-cell { width: 1%; white-space: nowrap; }
+    .model-cell { width: 1%; white-space: nowrap; }
+    .model-name { font-weight: 800; font-size: 14px; }
+    .model-id { margin-left: 8px; font: 11.5px/1.35 var(--mono); color: var(--ink-2); }
+    .rail-table tr.is-idle .did { color: var(--ink-2); font-style: italic; }
+    .receipt {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: baseline;
+      gap: 4px 12px;
+      margin: 0;
+      padding: 10px 18px 12px;
+      font: 13px/1.4 var(--mono);
+    }
+    .receipt-label { font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; font-size: 11.5px; }
+    .receipt-detail { color: var(--ink-2); }
+    .receipt-leader { flex: 1 1 40px; border-bottom: 2px dotted var(--rule-strong); min-width: 24px; align-self: center; }
+    .receipt-total { font: 800 22px/1 var(--mono); font-variant-numeric: tabular-nums; }
+
+    /* ---------- Full record (below the first screen) ---------- */
+    .record { margin-top: 40px; padding-bottom: 48px; }
+    .record-head {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 6px 16px;
+      padding-top: 18px;
+      border-top: 2px solid var(--ink);
+      margin-bottom: 12px;
+    }
+    .record-head h2 { margin: 0; font: 800 20px/1.2 var(--sans); }
+    .record-head p { margin: 0; color: var(--ink-2); font-size: 13px; }
+    .steps-banner {
+      list-style: none;
+      margin: 0 0 16px;
+      padding: 0;
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 8px;
+    }
+    .step-card { background: var(--paper); border: 1px solid var(--rule); border-top: 3px solid var(--rule); border-radius: 6px; padding: 8px 10px; }
+    .step-card.active { border-top-color: var(--info); }
+    .step-card.done { border-top-color: var(--good); }
+    .step-card.failed { border-top-color: var(--bad); }
+    .step-num { font: 700 10.5px/1.3 var(--mono); letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-2); }
+    .step-title { font-weight: 700; margin: 2px 0; font-size: 13px; }
+    .step-status { font-size: 12px; color: var(--ink-2); overflow-wrap: anywhere; }
     .main-grid {
       display: grid;
-      grid-template-columns: 1.15fr 0.85fr;
+      grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
       gap: 16px;
-      padding: 16px 20px;
-      max-width: 1680px;
-      margin: 0 auto;
-    }
-    @media (max-width: 1100px) {
-      .main-grid { grid-template-columns: 1fr; }
-      .steps-banner { grid-template-columns: 1fr; }
     }
     .panel {
-      background: var(--panel);
-      border: 1px solid var(--border);
+      background: var(--paper);
+      border: 1px solid var(--rule);
       border-radius: 8px;
       padding: 14px;
       margin-bottom: 14px;
     }
-    .panel h2 {
-      margin: 0 0 8px;
-      font-size: 15px;
+    .panel-head {
       display: flex;
+      flex-wrap: wrap;
       align-items: center;
       justify-content: space-between;
       gap: 8px;
+      margin-bottom: 8px;
     }
-    .verdict-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 10px;
-      margin: 10px 0;
-    }
-    .verdict-box {
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      padding: 10px;
-      background: var(--panel-alt);
-    }
-    .verdict-box.pass { border-color: var(--green); background: var(--green-bg); }
-    .verdict-box.fail { border-color: var(--red); background: var(--red-bg); }
-    .verdict-label { font-size: 11px; text-transform: uppercase; color: var(--muted); font-weight: 700; }
+    .panel-head h3 { margin: 0; font: 800 15px/1.3 var(--sans); }
+    .panel-note { margin: 0 0 8px; font-size: 12.5px; color: var(--ink-2); }
+    .btn-row { display: flex; flex-wrap: wrap; gap: 8px; }
+    .verdict-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin: 10px 0; }
+    .verdict-box { border: 1px solid var(--rule); border-radius: 6px; padding: 10px; background: var(--paper-2); }
+    .verdict-box.pass { border-color: var(--good); background: var(--good-wash); }
+    .verdict-box.fail { border-color: var(--bad); background: var(--bad-wash); }
+    .verdict-label { font: 700 10.5px/1.3 var(--mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-2); }
     .verdict-val { font-size: 20px; font-weight: 800; margin: 4px 0; }
-
+    .verdict-sub { font-size: 12px; color: var(--ink-2); overflow-wrap: anywhere; }
+    .verdict-sub.is-warn { color: var(--warn); font-weight: 600; }
+    .reject-box {
+      display: none;
+      padding: 8px 10px;
+      border-radius: 6px;
+      background: var(--bad-wash);
+      border: 1px solid var(--bad);
+      color: var(--ink);
+      font-size: 12px;
+      margin-top: 8px;
+      overflow-wrap: anywhere;
+    }
+    .reject-box strong { color: var(--bad); }
+    .cond-list { list-style: none; padding: 0; margin: 8px 0 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; font-size: 12px; }
+    .cond-item { padding: 5px 8px; border-radius: 4px; border: 1px solid var(--rule); background: var(--paper-2); }
     .group-row {
-      border: 1px solid var(--border);
+      border: 1px solid var(--rule);
       border-radius: 6px;
       padding: 10px;
       margin-bottom: 8px;
-      background: var(--panel-alt);
+      background: var(--paper-2);
       display: flex;
       flex-wrap: wrap;
       justify-content: space-between;
       align-items: center;
       gap: 10px;
     }
-    .group-info { flex: 1 1 320px; }
+    .group-info { flex: 1 1 320px; min-width: 0; }
     .group-title { font-weight: 700; font-size: 14px; }
-    .group-meta { color: var(--muted); font-size: 12px; margin-top: 2px; }
-
-    .preview-frame-wrap {
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      overflow: hidden;
-      background: #fff;
-      height: 460px;
-    }
-    iframe#verifier-frame {
-      width: 100%;
-      height: 100%;
-      border: 0;
-    }
+    .group-meta { color: var(--ink-2); font-size: 12px; margin-top: 2px; overflow-wrap: anywhere; }
+    .preview-frame-wrap { border: 1px solid var(--rule); border-radius: 6px; overflow: hidden; background: #fff; height: 460px; }
+    iframe#verifier-frame { width: 100%; height: 100%; border: 0; }
     pre.diff-box, pre.stream-box {
-      background: #090d14;
-      border: 1px solid var(--border);
+      background: var(--code-bg);
+      border: 1px solid var(--rule);
       border-radius: 6px;
       padding: 10px;
-      overflow-x: auto;
+      overflow: auto;
       max-height: 260px;
-      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-      font-size: 12px;
-      color: #e2e8f0;
+      font: 12px/1.5 var(--mono);
+      color: var(--ink);
       margin: 8px 0;
       white-space: pre-wrap;
+      overflow-wrap: anywhere;
     }
-    table.data-table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 12px;
-    }
-    table.data-table th, table.data-table td {
-      border: 1px solid var(--border);
-      padding: 6px 8px;
-      text-align: left;
-    }
-    table.data-table th { background: var(--panel-alt); }
-    .readout-card {
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      padding: 10px;
-      background: var(--panel-alt);
-      margin-top: 8px;
-    }
-    .cond-list {
-      list-style: none;
-      padding: 0;
-      margin: 8px 0 0;
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: 6px;
-      font-size: 12px;
-    }
-    .cond-item {
-      padding: 5px 8px;
+    .table-scroll { overflow-x: auto; }
+    table.data-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    table.data-table th, table.data-table td { border: 1px solid var(--rule); padding: 6px 8px; text-align: left; vertical-align: top; }
+    table.data-table th { background: var(--paper-2); }
+    table.data-table tr[data-ver]:hover td { background: var(--paper-2); }
+    .row-btn {
+      background: none;
+      border: 1px solid var(--rule-strong);
       border-radius: 4px;
-      border: 1px solid var(--border);
-      background: #0f172a;
+      color: var(--ink);
+      font: 700 12px/1.2 var(--mono);
+      padding: 3px 6px;
+      cursor: pointer;
     }
-    .token-input {
-      background: #090d14;
-      border: 1px solid var(--border);
-      color: var(--text);
-      padding: 6px 10px;
-      border-radius: 6px;
-      width: 170px;
+    .readout-card { border: 1px solid var(--rule); border-radius: 6px; padding: 10px; background: var(--paper-2); margin-top: 8px; }
+    .readout-card.is-accent { border-color: var(--info); }
+    .note-info { color: var(--info); font-size: 12px; }
+    .ex-code { font: 11px/1.45 var(--mono); margin-top: 4px; color: var(--ink-2); overflow-wrap: anywhere; }
+    .review-box { margin-top: 8px; font-size: 12px; color: var(--warn); overflow-wrap: anywhere; }
+    .page-tabs { display: flex; flex-wrap: wrap; gap: 6px; }
+    .page-tab[aria-pressed="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+    .alt-list { max-height: 260px; overflow-y: auto; }
+    .alt-list label { display: inline-flex; gap: 6px; align-items: baseline; margin-right: 14px; cursor: pointer; }
+
+    /* ---------- Responsive ---------- */
+    @media (max-width: 1240px) {
+      .model-cell { white-space: normal; width: 24%; }
+      .model-id { display: block; margin-left: 0; overflow-wrap: anywhere; }
+    }
+    @media (max-width: 1100px) {
+      .mast-grid { grid-template-columns: 1fr; align-items: start; }
+      .main-grid { grid-template-columns: minmax(0, 1fr); }
+      .steps-banner { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+    @media (max-width: 860px) {
+      .rx-cols { grid-template-columns: minmax(0, 1fr); }
+      .rx-meta { grid-column: 2; flex-direction: row; flex-wrap: wrap; gap: 2px 14px; align-items: baseline; text-align: left; margin-top: 4px; }
+      .rx-col + .rx-col { border-left: 0; border-top: 1px solid var(--label-hair); }
+      .rail-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+      .rail-table, .rail-table tbody, .rail-table tr, .rail-table td { display: block; }
+      .rail-table tr { padding: 10px 16px; border-bottom: 1px solid var(--rule); }
+      .rail-table td { border: 0; padding: 2px 0 !important; }
+      .rail-table td.num { display: inline-block; text-align: left; margin-right: 16px; }
+      .rail-table td.num::before { content: attr(data-label) " "; color: var(--ink-2); }
+      .model-cell, .role-cell { width: auto; }
+      .verdict-grid, .cond-list { grid-template-columns: minmax(0, 1fr); }
+    }
+    @media (max-width: 640px) {
+      .wrap { padding: 0 16px; }
+      .wordmark { font-size: 32px; }
+      .tagline { font-size: 17px; }
+      .hero-head .hint-btn { margin-left: 0; text-align: left; }
+      .primary-actions { flex-direction: column; width: 100%; }
+      .primary-actions .action, .primary-actions .btn-xl { width: 100%; justify-content: center; }
+      .action-note { max-width: none; }
+      .steps-banner { grid-template-columns: minmax(0, 1fr); }
+      .big-num { font-size: 44px; }
+      .sticker-lg { font-size: 20px; }
+      .rx-top { padding: 10px 14px; }
+      .rx-col { padding: 12px 14px 14px; }
+      .rx-glyph { font-size: 38px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      * { transition: none !important; scroll-behavior: auto !important; }
     }
   </style>
 </head>
 <body>
 
-  <div id="replay-banner" class="replay-banner"></div>
-
-  <header class="top-bar">
-    <div>
-      <h1 class="brand-title">Placebo</h1>
-      <p class="brand-sub">Accessibility fixes that can't fool the checker. Hear the difference.</p>
+  <header class="masthead">
+    <div class="topbar">
+      <div class="wrap topbar-inner">
+        <span id="spend-badge" class="badge">Spend —</span>
+        <div class="utility">
+          <label class="field-label" for="demo-token-input">Demo token</label>
+          <input id="demo-token-input" type="password" class="token-input" placeholder="for live runs" autocomplete="off">
+          <label class="btn btn-quiet" for="load-trace-file">Load trace JSON
+            <input id="load-trace-file" class="visually-hidden" type="file" accept=".json">
+          </label>
+          <button id="btn-reset" class="btn btn-quiet" type="button">Reset store</button>
+          <button id="btn-theme" class="btn btn-quiet" type="button">Light theme</button>
+        </div>
+      </div>
     </div>
-    <div class="top-controls">
-      <span id="spend-badge" class="badge badge-blue">Spend: $0.0000 / $20.00 (save mode)</span>
-      <input id="demo-token-input" type="password" class="token-input" placeholder="Demo token (for live calls)">
-      <button id="btn-reset" class="btn" type="button">Reset Store (/reset)</button>
+    <div class="wrap mast-grid">
+      <div class="brand">
+        <div class="brand-row">
+          <h1 class="wordmark"><span class="rx" aria-hidden="true">&#8478;</span>Placebo</h1>
+          <p class="provider"><span class="mono-label">NVIDIA Nemotron on Nebius Token Factory</span></p>
+        </div>
+        <p class="tagline">A Nemotron coding agent that fixes accessibility at the source — and can't fool its own tests.</p>
+      </div>
+      <div class="primary-actions">
+        <div class="action">
+          <button id="btn-watch-replay" class="btn btn-primary btn-xl" type="button" aria-describedby="watch-note"><span class="glyph" aria-hidden="true">&#9654;</span> Watch recorded run</button>
+          <p id="watch-note" class="action-note">No token, no model calls</p>
+        </div>
+        <div class="action">
+          <button id="btn-run-all" class="btn btn-outline btn-xl" type="button" aria-describedby="run-all-note">Run autopilot</button>
+          <p id="run-all-note" class="action-note">Live on Nemotron</p>
+        </div>
+      </div>
     </div>
   </header>
 
-  <section class="landing-strip">
-    <div>
-      <strong>First time here?</strong>
-      <button id="btn-watch-replay" class="btn btn-primary" type="button">Watch a recorded run</button>
-      <label class="btn" for="load-trace-file" style="cursor:pointer;">
-        Load trace JSON
-        <input id="load-trace-file" type="file" accept=".json" style="display:none;">
-      </label>
-      <span style="color:var(--muted); margin-left:8px;">
-        Live runs need a demo token to cap spend; ask at our table.
-      </span>
-    </div>
-    <div>
-      <span class="badge badge-amber">Planted defects — we built this store to break it</span>
-      <span id="headline-summary" class="badge badge-blue">axe violations 58 → 58, 0 items need human review</span>
-    </div>
-  </section>
+  <main>
+    <div class="wrap">
 
-  <!-- Step k/5 Banner -->
-  <section class="steps-banner" aria-label="Verification workflow steps">
-    <div id="step-card-1" class="step-card active">
-      <div class="step-num">Step 1/5</div>
-      <div class="step-title">1 Scan every page</div>
-      <div id="step-status-1" class="step-status">waiting</div>
-    </div>
-    <div id="step-card-2" class="step-card">
-      <div class="step-num">Step 2/5</div>
-      <div class="step-title">2 Diagnose &amp; patch (Nemotron)</div>
-      <div id="step-status-2" class="step-status">waiting</div>
-    </div>
-    <div id="step-card-3" class="step-card">
-      <div class="step-num">Step 3/5</div>
-      <div class="step-title">3 Re-verify whole site</div>
-      <div id="step-status-3" class="step-status">waiting</div>
-    </div>
-    <div id="step-card-4" class="step-card">
-      <div class="step-num">Step 4/5</div>
-      <div class="step-title">4 Retry or hand off</div>
-      <div id="step-status-4" class="step-status">waiting</div>
-    </div>
-    <div id="step-card-5" class="step-card">
-      <div class="step-num">Step 5/5</div>
-      <div class="step-title">5 Approve &amp; hear it</div>
-      <div id="step-status-5" class="step-status">waiting</div>
-    </div>
-  </section>
-
-  <main class="main-grid">
-    <!-- Left Column: Controls, Demo Scenes, Groups, Approval, Readout, Scene D -->
-    <div>
-      <!-- On-Camera Demo Scenes Toolbar -->
-      <section class="panel">
-        <h2>
-          <span>Step 1 &amp; Demo Scenes (Baseline → Guard / Regression / Live Fix)</span>
-          <button id="btn-scan-baseline" class="btn btn-primary" type="button">1. Scan Baseline Store (4 pages)</button>
-        </h2>
-        <div style="display:flex; flex-wrap:wrap; gap:8px; margin-top:8px;">
-          <button id="btn-scene-a" class="btn btn-danger" type="button">Scene A: Inject a cheating patch</button>
-          <button id="btn-scene-a2" class="btn btn-danger" type="button">Scene A2: role="presentation" on content image</button>
-          <button id="btn-scene-b" class="btn btn-warn" type="button">Scene B: Try a naive per-violation fix (#767676)</button>
-          <button id="btn-run-all" class="btn btn-success" type="button">Run all groups</button>
-          <button id="btn-scene-d" class="btn" type="button">Scene D: Scan Real Template (Aviato)</button>
+      <!-- First screen: the verdict for the version shown -->
+      <section class="hero" aria-labelledby="hero-title">
+        <div class="hero-head">
+          <h2 id="hero-title" class="mono-label">Verdict for the version shown</h2>
+          <div id="replay-banner" class="replay-banner" role="status"></div>
+          <button id="hero-hint" class="hint-btn" type="button" hidden></button>
         </div>
-      </section>
+        <div id="version-selector-bar" class="pill-bar" role="group" aria-label="Versions in this run"></div>
 
-      <!-- Side-by-Side Verification Verdict: axe / Guard / Hidden Check -->
-      <section class="panel">
-        <h2>
-          <span>Whole-Site Verification Verdict</span>
-          <span id="active-version-badge" class="badge">v0 (Baseline)</span>
-        </h2>
-        <div id="version-selector-bar" style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:10px;"></div>
-        <div class="verdict-grid">
-          <div id="box-axe" class="verdict-box">
-            <div class="verdict-label">axe-core (4 pages)</div>
-            <div id="val-axe" class="verdict-val">—</div>
-            <div id="sub-axe" style="font-size:12px; color:var(--muted);">wcag2a/aa, wcag21a/aa</div>
-          </div>
-          <div id="box-guard" class="verdict-box">
-            <div class="verdict-label">Deterministic Guard</div>
-            <div id="val-guard" class="verdict-val">—</div>
-            <div id="sub-guard" style="font-size:12px; color:var(--muted);">Names, IDs, whitelist</div>
-          </div>
-          <div id="box-hidden" class="verdict-box">
-            <div class="verdict-label">Condition 6: No Harm (Hidden)</div>
-            <div id="val-hidden" class="verdict-val">—</div>
-            <div id="sub-hidden" style="font-size:12px; color:var(--amber); font-weight:600;">Patch model never saw this check</div>
-          </div>
-        </div>
-        <div id="rejection-reasons-box" style="display:none; padding:8px 10px; border-radius:6px; background:var(--red-bg); border:1px solid var(--red); color:#fecaca; font-size:12px; margin-top:8px;"></div>
-        <ul id="conditions-checklist" class="cond-list"></ul>
-      </section>
-
-      <!-- Six Root-Cause Groups -->
-      <section class="panel">
-        <h2>
-          <span>Root-Cause Violation Groups (One group at a time)</span>
-          <span style="font-size:12px; color:var(--muted);">Shared source patches fix all 4 pages at once</span>
-        </h2>
-        <div id="groups-container"></div>
-      </section>
-
-      <!-- Live Nemotron Stream & Approval Screen -->
-      <section class="panel">
-        <h2>
-          <span>Live Nemotron Stream &amp; Human Approval</span>
-          <span id="stream-model-badge" class="badge">Idle</span>
-        </h2>
-        <pre id="stream-log" class="stream-box">Click "1. Scan Baseline Store" or "Diagnose &amp; Patch (Nemotron)" on any root-cause group.</pre>
-
-        <div id="approval-panel" style="display:none; margin-top:10px; border-top:1px solid var(--border); padding-top:10px;">
-          <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+        <article class="rx-label" aria-labelledby="hero-name">
+          <div class="rx-top">
+            <span class="rx-glyph" aria-hidden="true">&#8478;</span>
             <div>
-              <strong id="approval-title">Candidate Patch Ready</strong>
-              <span id="approval-counts" class="badge badge-blue" style="margin-left:6px;"></span>
+              <h3 id="hero-name" class="rx-name"><span id="hero-vnum">v0</span> · <span id="hero-vname">Baseline</span></h3>
+              <p class="rx-sub"><span class="mono-label" style="color:inherit;">Made by</span> <span id="hero-vmaker">—</span></p>
             </div>
-            <div style="display:flex; gap:8px;">
-              <a id="btn-download-diff" class="btn" href="#" download>Download .patch diff</a>
-              <button id="btn-approve-patch" class="btn btn-success" type="button">Approve &amp; Update /preview</button>
+            <p class="rx-meta">
+              <span>Run <b id="hero-run-id">—</b></span>
+              <span>Started <b id="hero-run-time">—</b></span>
+            </p>
+          </div>
+          <div class="rx-cols">
+            <div class="rx-col">
+              <h4 class="col-label">axe says</h4>
+              <p class="big-num" id="hero-axe-num">
+                <span id="hero-axe-before" class="num-before"></span><span id="hero-axe-arrow" class="num-arrow" hidden><span aria-hidden="true">&rarr;</span><span class="visually-hidden"> to </span></span><span id="hero-axe-after">—</span>
+              </p>
+              <p id="hero-axe-caption" class="col-caption">Not scanned yet</p>
+              <p id="hero-axe-new" class="col-caption is-bad" hidden></p>
+              <div id="hero-axe-sticker" class="axe-sticker" hidden><span class="sticker good">axe: pass</span></div>
+              <p class="col-foot mono">axe-core · wcag2a/aa, wcag21a/aa</p>
+            </div>
+            <div class="rx-col">
+              <h4 class="col-label">Placebo says</h4>
+              <p style="margin:0;"><span id="hero-verdict" class="sticker sticker-lg">—</span></p>
+              <ul id="hero-reasons" class="reason-list"></ul>
+              <a id="hero-more" class="more-link" href="#verification-report" hidden></a>
+            </div>
+            <div class="rx-col">
+              <h4 class="col-label">You hear</h4>
+              <div class="hear-row">
+                <div class="hear-meta">Before · <span id="hear-before-tag">v0 baseline</span></div>
+                <q id="readout-before-text" class="hear-text">—</q>
+                <button id="btn-tts-before" class="btn btn-label" type="button" aria-label="Play the before readout"><span class="glyph" aria-hidden="true">&#9654;</span> Play</button>
+                <audio id="audio-before" controls style="display:none;"></audio>
+              </div>
+              <div class="hear-row">
+                <div class="hear-meta">After · <span id="hear-after-tag">—</span></div>
+                <q id="readout-after-text" class="hear-text">—</q>
+                <button id="btn-tts-after" class="btn btn-label is-solid" type="button" aria-label="Play the after readout"><span class="glyph" aria-hidden="true">&#9654;</span> Play</button>
+                <audio id="audio-after" controls style="display:none;"></audio>
+              </div>
+              <p id="hear-diff" class="hear-diff"></p>
+              <p class="col-foot">Simulated readout: accessible name, else the role. <span id="tts-model-badge">Voiced by your browser.</span></p>
             </div>
           </div>
-          <div id="human-review-box" style="margin-top:8px; font-size:12px; color:#fde68a;"></div>
-          <pre id="diff-view" class="diff-box"></pre>
-        </div>
-
-        <!-- Alt Text Candidate Picker (1 of 3 per image) -->
-        <div id="alt-picker-panel" style="display:none; margin-top:10px; border-top:1px solid var(--border); padding-top:10px;">
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-            <strong>Pick 1 of 3 Alt Candidates per Image (Drafted by MODEL_ASSIST)</strong>
-            <button id="btn-apply-alts" class="btn btn-primary" type="button">Apply Selected Alts &amp; Re-Verify</button>
+          <div class="rx-foot">
+            <span>Input: Bukchon Wool, a demo store with planted defects — we built it to break it.</span>
+            <a href="#verification-report">Full verification report</a>
           </div>
-          <div id="alt-picker-list" style="max-height:260px; overflow-y:auto;"></div>
-        </div>
+        </article>
+        <p id="hero-live" class="visually-hidden" aria-live="polite"></p>
       </section>
 
-      <!-- Scene C: Simulated Screen-Reader Readout (voiced in the browser) -->
-      <section class="panel">
-        <h2>
-          <span>Scene C: Simulated screen-reader readout (voiced in the browser)</span>
-          <span id="tts-model-badge" class="badge">browser speech</span>
-        </h2>
-        <p style="margin:0 0 8px; font-size:12px; color:var(--muted);">
-          Simulated readout: accessible name, or the role when the name is empty.
-        </p>
-        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
-          <div class="readout-card">
-            <div style="font-size:11px; color:var(--muted); text-transform:uppercase; font-weight:700;">Before (Baseline v0)</div>
-            <div id="readout-before-text" style="font-weight:700; font-size:14px; margin:6px 0; color:#fca5a5;">button. link. button. image.</div>
-            <button id="btn-tts-before" class="btn" type="button">Play Before (screen reader)</button>
-            <audio id="audio-before" controls style="width:100%; margin-top:8px; height:32px; display:none;"></audio>
+      <!-- First screen: which model did what, and what it cost -->
+      <section class="rail" aria-labelledby="rail-title">
+        <div class="rail-head">
+          <h2 id="rail-title">Who did what <span id="rail-scope" class="mono-label">in this run</span></h2>
+          <p class="rail-note">Models propose. A deterministic verifier decides. A human approves.</p>
+        </div>
+        <table class="rail-table">
+          <thead class="visually-hidden">
+            <tr>
+              <th scope="col">Role</th>
+              <th scope="col">Model</th>
+              <th scope="col">What it did</th>
+              <th scope="col" class="num">Calls</th>
+              <th scope="col" class="num">Cost</th>
+            </tr>
+          </thead>
+          <tbody id="rail-body"></tbody>
+        </table>
+        <p id="rail-receipt" class="receipt"></p>
+      </section>
+
+      <!-- Below the first screen: everything behind the verdict -->
+      <section class="record" aria-labelledby="record-title">
+        <div class="record-head">
+          <h2 id="record-title">Full record</h2>
+          <p>Every scene, patch, diff and model call behind the verdict above. <span id="headline-summary" class="badge">axe violations — → —</span></p>
+        </div>
+
+        <ol class="steps-banner" aria-label="Verification workflow steps">
+          <li id="step-card-1" class="step-card active">
+            <div class="step-num">Step 1/5</div>
+            <div class="step-title">Scan every page</div>
+            <div id="step-status-1" class="step-status">waiting</div>
+          </li>
+          <li id="step-card-2" class="step-card">
+            <div class="step-num">Step 2/5</div>
+            <div class="step-title">Diagnose &amp; patch (Nemotron)</div>
+            <div id="step-status-2" class="step-status">waiting</div>
+          </li>
+          <li id="step-card-3" class="step-card">
+            <div class="step-num">Step 3/5</div>
+            <div class="step-title">Re-verify whole site</div>
+            <div id="step-status-3" class="step-status">waiting</div>
+          </li>
+          <li id="step-card-4" class="step-card">
+            <div class="step-num">Step 4/5</div>
+            <div class="step-title">Retry or hand off</div>
+            <div id="step-status-4" class="step-status">waiting</div>
+          </li>
+          <li id="step-card-5" class="step-card">
+            <div class="step-num">Step 5/5</div>
+            <div class="step-title">Approve &amp; hear it</div>
+            <div id="step-status-5" class="step-status">waiting</div>
+          </li>
+        </ol>
+
+        <div class="main-grid">
+          <!-- Left column -->
+          <div>
+            <section class="panel">
+              <div class="panel-head">
+                <h3>Try to fool it: scenes</h3>
+                <button id="btn-scan-baseline" class="btn btn-primary" type="button">Scan baseline (4 pages)</button>
+              </div>
+              <p class="panel-note">Scenes A, A2 and B are pre-built patches, not model output. They exist to show what the verifier rejects.</p>
+              <div class="btn-row">
+                <button id="btn-scene-a" class="btn btn-danger" type="button">Scene A: inject a cheating patch</button>
+                <button id="btn-scene-a2" class="btn btn-danger" type="button">Scene A2: role="presentation" on a content image</button>
+                <button id="btn-scene-b" class="btn btn-warn" type="button">Scene B: naive per-violation fix (#767676)</button>
+                <button id="btn-scene-d" class="btn" type="button">Scene D: scan a real template (Aviato)</button>
+              </div>
+            </section>
+
+            <section class="panel" id="verification-report">
+              <div class="panel-head">
+                <h3>Whole-site verification report</h3>
+                <span id="active-version-badge" class="badge">v0 (Baseline)</span>
+              </div>
+              <div class="verdict-grid">
+                <div id="box-axe" class="verdict-box">
+                  <div class="verdict-label">axe-core (4 pages)</div>
+                  <div id="val-axe" class="verdict-val">—</div>
+                  <div id="sub-axe" class="verdict-sub">wcag2a/aa, wcag21a/aa</div>
+                </div>
+                <div id="box-guard" class="verdict-box">
+                  <div class="verdict-label">Deterministic Guard</div>
+                  <div id="val-guard" class="verdict-val">—</div>
+                  <div id="sub-guard" class="verdict-sub">Names, IDs, whitelist</div>
+                </div>
+                <div id="box-hidden" class="verdict-box">
+                  <div class="verdict-label">Condition 6: no harm (hidden)</div>
+                  <div id="val-hidden" class="verdict-val">—</div>
+                  <div id="sub-hidden" class="verdict-sub is-warn">Patch model never saw this check</div>
+                </div>
+              </div>
+              <div id="rejection-reasons-box" class="reject-box"></div>
+              <ul id="conditions-checklist" class="cond-list"></ul>
+            </section>
+
+            <section class="panel">
+              <div class="panel-head">
+                <h3>Root-cause groups (one group at a time)</h3>
+                <span class="panel-note" style="margin:0;">Shared source patches fix all 4 pages at once</span>
+              </div>
+              <div id="groups-container"></div>
+            </section>
+
+            <section class="panel">
+              <div class="panel-head">
+                <h3>Nemotron stream &amp; human approval</h3>
+                <span id="stream-model-badge" class="badge">Idle</span>
+              </div>
+              <pre id="stream-log" class="stream-box" role="log" aria-label="Model stream log" tabindex="0">Model output appears here. Start with "Watch recorded run", or scan the baseline.</pre>
+
+              <div id="approval-panel" style="display:none; margin-top:10px; border-top:1px solid var(--rule); padding-top:10px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+                  <div>
+                    <strong id="approval-title">Candidate Patch Ready</strong>
+                    <span id="approval-counts" class="badge badge-blue" style="margin-left:6px;"></span>
+                  </div>
+                  <div style="display:flex; flex-wrap:wrap; gap:8px;">
+                    <a id="btn-download-diff" class="btn" href="#" download>Download .patch diff</a>
+                    <button id="btn-approve-patch" class="btn btn-success" type="button">Approve &amp; Update /preview</button>
+                  </div>
+                </div>
+                <div id="human-review-box" class="review-box"></div>
+                <pre id="diff-view" class="diff-box" role="region" aria-label="Patch diff" tabindex="0"></pre>
+              </div>
+
+              <div id="alt-picker-panel" style="display:none; margin-top:10px; border-top:1px solid var(--rule); padding-top:10px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:8px;">
+                  <strong>Pick 1 of 3 alt candidates per image (drafted by the ASSIST model)</strong>
+                  <button id="btn-apply-alts" class="btn btn-primary" type="button">Apply selected alts &amp; re-verify</button>
+                </div>
+                <div id="alt-picker-list" class="alt-list"></div>
+              </div>
+            </section>
+
+            <section id="scene-d-panel" class="panel" style="display:none;">
+              <div class="panel-head">
+                <h3>Scene D: real input — Themefisher Aviato (scan + diagnosis only)</h3>
+                <span class="badge badge-amber">Passes axe — flagged by Placebo</span>
+              </div>
+              <div id="aviato-content" style="font-size:13px;"></div>
+            </section>
           </div>
-          <div class="readout-card">
-            <div style="font-size:11px; color:var(--muted); text-transform:uppercase; font-weight:700;">After (Current Preview)</div>
-            <div id="readout-after-text" style="font-weight:700; font-size:14px; margin:6px 0; color:#86efac;">Search. Cart. Menu. Navy wool coat.</div>
-            <button id="btn-tts-after" class="btn btn-primary" type="button">Play After (screen reader)</button>
-            <audio id="audio-after" controls style="width:100%; margin-top:8px; height:32px; display:none;"></audio>
+
+          <!-- Right column -->
+          <div>
+            <section class="panel">
+              <div class="panel-head">
+                <h3>Store preview <span class="mono-label">sandbox="allow-scripts"</span></h3>
+                <div class="page-tabs" role="group" aria-label="Preview page">
+                  <button class="btn btn-quiet page-tab" data-page="index.html" type="button" aria-pressed="true">index.html</button>
+                  <button class="btn btn-quiet page-tab" data-page="product.html" type="button" aria-pressed="false">product.html</button>
+                  <button class="btn btn-quiet page-tab" data-page="cart.html" type="button" aria-pressed="false">cart.html</button>
+                  <button class="btn btn-quiet page-tab" data-page="checkout.html" type="button" aria-pressed="false">checkout.html</button>
+                </div>
+              </div>
+              <div class="preview-frame-wrap">
+                <iframe id="verifier-frame" sandbox="allow-scripts" title="Placebo store preview (the patched demo store)"></iframe>
+              </div>
+            </section>
+
+            <section class="panel">
+              <div class="panel-head">
+                <h3>Attempt trace &amp; cache metrics</h3>
+                <a id="btn-download-trace" class="btn btn-quiet" href="#" download>Download trace JSON</a>
+              </div>
+              <div class="table-scroll" role="region" aria-label="Attempt trace" tabindex="0">
+                <table class="data-table">
+                  <thead>
+                    <tr>
+                      <th scope="col">#</th>
+                      <th scope="col">Group / Scene</th>
+                      <th scope="col">Model</th>
+                      <th scope="col">Violations</th>
+                      <th scope="col">Guard</th>
+                      <th scope="col">Hidden check</th>
+                      <th scope="col">Tokens / cache % / est. cost</th>
+                      <th scope="col">Time</th>
+                    </tr>
+                  </thead>
+                  <tbody id="trace-tbody">
+                    <tr><td colspan="8" style="color:var(--muted);">No attempts recorded yet.</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </section>
+
+            <section class="panel">
+              <div class="panel-head">
+                <h3>Run summary</h3>
+                <span id="results-run-label" class="badge">Not started</span>
+              </div>
+              <div id="results-table-wrap">
+                <table class="data-table">
+                  <tbody id="results-summary-tbody">
+                    <tr><th scope="row">axe violations</th><td id="res-violations">—</td></tr>
+                    <tr><th scope="row">Regressions caught</th><td id="res-regressions">0</td></tr>
+                    <tr><th scope="row">Cheating patches rejected</th><td id="res-cheating">0</td></tr>
+                    <tr><th scope="row">Handed to a human</th><td id="res-handoffs">0</td></tr>
+                    <tr><th scope="row">Cumulative spend &amp; cache hit %</th><td id="res-spend">—</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </section>
           </div>
-        </div>
-      </section>
-
-      <!-- Scene D: Real Input (Themefisher Aviato) -->
-      <section id="scene-d-panel" class="panel" style="display:none;">
-        <h2>
-          <span>Scene D: Real Input — Themefisher Aviato Template (Scan + Diagnosis Only)</span>
-          <span class="badge badge-amber">Passes axe — flagged by Placebo</span>
-        </h2>
-        <div id="aviato-content" style="font-size:13px;"></div>
-      </section>
-    </div>
-
-    <!-- Right Column: Live Sandboxed Preview Iframe, Trace Panel & Results Table -->
-    <div>
-      <section class="panel">
-        <h2>
-          <span>Live Sandboxed Verifier Preview (<code>sandbox="allow-scripts"</code>)</span>
-          <div style="display:flex; gap:6px;">
-            <button class="btn page-tab" data-page="index.html" type="button">index.html</button>
-            <button class="btn page-tab" data-page="product.html" type="button">product.html</button>
-            <button class="btn page-tab" data-page="cart.html" type="button">cart.html</button>
-            <button class="btn page-tab" data-page="checkout.html" type="button">checkout.html</button>
-          </div>
-        </h2>
-        <div class="preview-frame-wrap">
-          <iframe id="verifier-frame" sandbox="allow-scripts" title="Placebo Store Preview"></iframe>
-        </div>
-      </section>
-
-      <section class="panel">
-        <h2>
-          <span>Attempt Trace &amp; Implicit Cache Metrics</span>
-          <a id="btn-download-trace" class="btn" href="#" download>Download Trace JSON</a>
-        </h2>
-        <div style="overflow-x:auto;">
-          <table class="data-table">
-            <thead>
-              <tr>
-                <th>#</th>
-                <th>Group / Scene</th>
-                <th>Model</th>
-                <th>Violations</th>
-                <th>Guard</th>
-                <th>Hidden Check</th>
-                <th>Tokens / Cache % / Est. Cost</th>
-                <th>Time</th>
-              </tr>
-            </thead>
-            <tbody id="trace-tbody">
-              <tr><td colspan="8" style="color:var(--muted);">No attempts recorded yet.</td></tr>
-            </tbody>
-          </table>
-        </div>
-      </section>
-
-      <section class="panel">
-        <h2>
-          <span>Run Summary &amp; Results Table</span>
-          <span id="results-run-label" class="badge">Not started</span>
-        </h2>
-        <div id="results-table-wrap">
-          <table class="data-table">
-            <tbody id="results-summary-tbody">
-              <tr><th>axe violations</th><td id="res-violations">58 → 58</td></tr>
-              <tr><th>Regressions caught</th><td id="res-regressions">0</td></tr>
-              <tr><th>Cheating patches rejected</th><td id="res-cheating">0</td></tr>
-              <tr><th>Handed to a human</th><td id="res-handoffs">0</td></tr>
-              <tr><th>Cumulative spend &amp; Cache hit %</th><td id="res-spend">$0.0000 · —</td></tr>
-            </tbody>
-          </table>
         </div>
       </section>
     </div>
@@ -540,6 +987,8 @@
 
     var frame = document.getElementById('verifier-frame');
     var streamLog = document.getElementById('stream-log');
+    var replayRecordedAt = null;
+    var lastAnnounced = null;
 
     function getDemoToken() {
       var el = document.getElementById('demo-token-input');
@@ -567,6 +1016,123 @@
       var ts = new Date().toLocaleTimeString('en-US', {hour12: false});
       streamLog.textContent += '\n[' + ts + '] ' + msg;
       streamLog.scrollTop = streamLog.scrollHeight;
+    }
+
+    // ---------- Small helpers for the first screen ----------
+    function setText(id, txt) {
+      var el = document.getElementById(id);
+      if (el) el.textContent = txt;
+    }
+    function fmtUsd(n) { return '$' + Number(n || 0).toFixed(4); }
+    function fmtTokens(n) {
+      n = Number(n || 0);
+      if (n >= 1e6) return (n / 1e6).toFixed(2) + 'M';
+      if (n >= 1e3) return Math.round(n / 1e3) + 'K';
+      return String(n);
+    }
+    function plural(n, word, suffix) { return n + ' ' + word + (n === 1 ? '' : (suffix || 's')); }
+    function getV(run, n) {
+      if (!run || !run.versions) return null;
+      return run.versions[n] || run.versions[String(n)] || null;
+    }
+    function versionNumbers(run) {
+      return Object.keys((run && run.versions) || {}).map(Number).sort(function(a, b) { return a - b; });
+    }
+    function finalVersionOf(run) {
+      if (run.approved_version != null && getV(run, run.approved_version)) return Number(run.approved_version);
+      var ks = versionNumbers(run);
+      return ks.length ? ks[ks.length - 1] : 0;
+    }
+    function isPrebuilt(vo) { return /^scene_/.test((vo && vo.source) || ''); }
+    // Older recordings carry no group_id on versions: fall back to the label, then the trace
+    function versionGroupId(vo) {
+      if (!vo) return null;
+      if (vo.group_id) return vo.group_id;
+      var m = /Group '([^']+)'/.exec(vo.label || '');
+      if (m) return m[1];
+      var hit = null;
+      ((state && state.run && state.run.trace) || []).some(function(t) {
+        if (Number(t.version) === Number(vo.version) && state.run.groups && state.run.groups[t.group_id]) { hit = t.group_id; return true; }
+        return false;
+      });
+      return hit;
+    }
+    function versionShortName(vo) {
+      var s = (vo && vo.source) || '';
+      if (!vo) return '';
+      if (Number(vo.version) === 0 || s === 'baseline') return 'Baseline';
+      if (s.indexOf('scene_a2') === 0) return 'Scene A2';
+      if (s.indexOf('scene_a') === 0) return 'Scene A';
+      if (s.indexOf('scene_b') === 0) return 'Scene B';
+      var gid = versionGroupId(vo);
+      if (gid) return gid;
+      if (s.indexOf('group:') === 0) return s.split(':')[1];
+      return 'v' + vo.version;
+    }
+    function versionLongName(run, vo) {
+      if (Number(vo.version) === 0) return 'Baseline store';
+      var gid = versionGroupId(vo);
+      var g = gid && run.groups && run.groups[gid];
+      if (g && g.title) return versionShortName(vo) + ' — ' + g.title;
+      var lbl = String(vo.label || '').replace(/\s*\([^()]*\)\s*$/, '');
+      return versionShortName(vo) + (lbl ? ' — ' + lbl : '');
+    }
+    function modelShort(id) {
+      if (!id) return '—';
+      var t = String(id).split('/').pop();
+      if (/ultra/i.test(t)) return 'Nemotron Ultra';
+      if (/-vl\b|vl$/i.test(t)) return 'Nemotron Super-VL';
+      if (/nano/i.test(t)) return 'Nemotron Nano';
+      if (/super/i.test(t)) return 'Nemotron Super';
+      return t;
+    }
+    function versionMakerHtml(vo) {
+      if (Number(vo.version) === 0) return 'The input: defects planted on purpose';
+      if (isPrebuilt(vo)) return 'Pre-built test patch — not model output';
+      var m = vo.model || '';
+      var html = escapeHtml(modelShort(m)) + (m ? ' <code>' + escapeHtml(m) + '</code>' : '');
+      if (vo.source === 'assist_alt') html += ' + a human pick';
+      if (vo.is_fallback) html += ' (fallback model)';
+      return html;
+    }
+
+    // Short, data-derived reasons for the "Placebo says" column
+    function rejectionReasons(ev) {
+      var c = ev.conditions || {};
+      var buckets = [];
+      var c6 = c['6_no_harm_hidden'];
+      if (c6 && !c6.passed) {
+        buckets.push((c6.failures && c6.failures.length ? c6.failures : ['Hidden no-harm check failed']).map(function(f) {
+          return {tag: 'Hidden check · model never saw it', text: f};
+        }));
+      }
+      var gr = (ev.guard && ev.guard.reasons) || [];
+      if (gr.length) {
+        buckets.push(gr.map(function(r) { return {tag: 'Guard', text: String(r).replace(/^Rejected\s*[—–-]\s*/, '')}; }));
+      }
+      var conds = [];
+      var c2 = c['2_zero_new_violations'];
+      if (c2 && !c2.passed) conds.push({tag: 'Condition 2 · regression', text: plural((c2.new_violations || []).length, 'new violation') + ' introduced site-wide'});
+      var c1 = c['1_targeted_keys_gone'];
+      if (c1 && !c1.passed) conds.push({tag: 'Condition 1', text: plural((c1.remaining_targeted || []).length, 'targeted violation') + ' still present'});
+      var c3 = c['3_zero_serious_critical'];
+      if (c3 && !c3.passed) conds.push({tag: 'Condition 3', text: plural(c3.count || 0, 'serious/critical violation') + ' remain'});
+      var c4 = c['4_clean_runtime'];
+      if (c4 && !c4.passed) conds.push({tag: 'Condition 4', text: plural((c4.errors || []).length, 'runtime error')});
+      var c5 = c['5_below_baseline'];
+      if (c5 && !c5.passed) conds.push({tag: 'Condition 5', text: 'Not below baseline (' + c5.baseline + ' → ' + c5.current + ')'});
+      if (conds.length) buckets.push(conds);
+      // One reason from each kind first, then the rest
+      var out = [];
+      var depth = 0, added = true;
+      while (added) {
+        added = false;
+        for (var i = 0; i < buckets.length; i++) {
+          if (buckets[i][depth]) { out.push(buckets[i][depth]); added = true; }
+        }
+        depth++;
+      }
+      return out;
     }
 
     // Listen to postMessage from sandboxed preview iframe (origin is "null")
@@ -645,51 +1211,401 @@
       renderUI();
     }
 
+    // ---------- First screen: version pills ----------
+    function renderVersionPills(run) {
+      var vBar = document.getElementById('version-selector-bar');
+      if (!vBar) return;
+      vBar.innerHTML = '';
+      versionNumbers(run).forEach(function(vk) {
+        var vo = getV(run, vk);
+        if (!vo) return;
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'pill';
+        btn.setAttribute('data-v', String(vk));
+        var isCur = Number(run.current_version) === vk;
+        btn.setAttribute('aria-pressed', isCur ? 'true' : 'false');
+        var vCount = (vo.scan && vo.scan.total_violations != null) ? vo.scan.total_violations : '…';
+        var status = '';
+        if (vk > 0 && vo.eval) {
+          status = vo.eval.all_pass
+            ? ' <span class="is-good"><span aria-hidden="true">&#10003;</span><span class="visually-hidden">verified</span></span>'
+            : ' <span class="is-bad"><span aria-hidden="true">&#10005;</span><span class="visually-hidden">rejected</span></span>';
+        } else if (vk > 0) {
+          status = ' · verifying';
+        }
+        btn.innerHTML =
+          '<span>v' + vk + ' ' + escapeHtml(versionShortName(vo)) + '</span>' +
+          '<span class="pill-meta">axe ' + escapeHtml(vCount) + status + '</span>';
+        btn.addEventListener('click', function() { selectVersion(vk); });
+        vBar.appendChild(btn);
+      });
+    }
+
+    // ---------- First screen: verdict band ----------
+    function renderHero(run, curV, baseV) {
+      var baseCount = (baseV && baseV.scan) ? baseV.scan.total_violations : null;
+      var curCount = (curV && curV.scan) ? curV.scan.total_violations : null;
+      var isBase = Number(curV.version) === 0;
+
+      setText('hero-run-id', run.run_id || '—');
+      setText('hero-run-time', run.created_at_kst || '—');
+      setText('hero-vnum', 'v' + curV.version);
+      setText('hero-vname', versionLongName(run, curV));
+      document.getElementById('hero-vmaker').innerHTML = versionMakerHtml(curV);
+
+      // axe says
+      var before = document.getElementById('hero-axe-before');
+      var arrow = document.getElementById('hero-axe-arrow');
+      var pagesScanned = Object.keys((curV.scan && curV.scan.pages) || (baseV && baseV.scan && baseV.scan.pages) || {}).length || STORE_PAGES.length;
+      var newEl = document.getElementById('hero-axe-new');
+      newEl.hidden = true;
+      if (curCount == null) {
+        before.textContent = '';
+        arrow.hidden = true;
+        setText('hero-axe-after', '—');
+        setText('hero-axe-caption', isBase ? 'Not scanned yet' : 'Scanning this version…');
+      } else if (isBase || baseCount == null) {
+        before.textContent = '';
+        arrow.hidden = true;
+        setText('hero-axe-after', String(curCount));
+        setText('hero-axe-caption', (curCount === 1 ? 'violation' : 'violations') + ' across ' + pagesScanned + ' pages');
+      } else {
+        before.textContent = String(baseCount);
+        arrow.hidden = false;
+        setText('hero-axe-after', String(curCount));
+        setText('hero-axe-caption', curCount === 0
+          ? 'violations across ' + pagesScanned + ' pages. axe has nothing left to flag.'
+          : (curCount === 1 ? 'violation' : 'violations') + ' left across ' + pagesScanned + ' pages, from ' + baseCount + ' at baseline');
+        var c2 = curV.eval && curV.eval.conditions && curV.eval.conditions['2_zero_new_violations'];
+        if (c2 && !c2.passed) {
+          newEl.textContent = 'Includes ' + plural((c2.new_violations || []).length, 'new violation') + ' this patch introduced.';
+          newEl.hidden = false;
+        }
+      }
+      var axeSticker = document.getElementById('hero-axe-sticker');
+      axeSticker.hidden = !(curCount === 0);
+
+      // Placebo says
+      var verdictEl = document.getElementById('hero-verdict');
+      var list = document.getElementById('hero-reasons');
+      var more = document.getElementById('hero-more');
+      var reasons = [];
+      var verdictWord = '—', verdictCls = '';
+      list.innerHTML = '';
+      more.hidden = true;
+      if (isBase) {
+        verdictWord = curCount == null ? 'Not scanned' : 'Baseline';
+        verdictCls = '';
+        reasons.push(curCount == null
+          ? {tag: 'Start here', text: 'Watch the recorded run, or scan the baseline store.', cls: ''}
+          : {tag: 'Not a patch', text: 'The unpatched store. Every patch is judged against it.', cls: ''});
+        if (curCount != null && baseV.scan.by_rule) {
+          reasons.push({tag: 'Planted', text: plural(Object.keys(baseV.scan.by_rule).length, 'rule type') + ': ' + Object.keys(baseV.scan.by_rule).join(', '), cls: ''});
+        }
+      } else if (!curV.eval) {
+        verdictWord = 'Verifying';
+        verdictCls = 'info';
+        reasons.push({tag: 'In progress', text: 'Whole-site re-scan and the six pass conditions run next.', cls: ''});
+      } else if (curV.eval.all_pass) {
+        verdictWord = 'Verified';
+        verdictCls = 'good';
+        var cKeys = Object.keys(curV.eval.conditions || {});
+        var cPass = cKeys.filter(function(k) { return curV.eval.conditions[k].passed; }).length;
+        reasons.push({tag: 'Pass conditions', text: cPass + ' of ' + cKeys.length + ' passed, including the hidden check the patch model never sees', cls: 'is-good'});
+        var hr = (curV.eval.guard && curV.eval.guard.human_review_items) || [];
+        reasons.push({
+          tag: 'Human',
+          text: (curV.approved ? 'Approved by a human reviewer' : 'Waiting for human approval') +
+            (hr.length ? ' · ' + plural(hr.length, 'item') + ' flagged for review' : ''),
+          cls: curV.approved ? 'is-good' : ''
+        });
+      } else {
+        verdictWord = 'Rejected';
+        verdictCls = 'bad';
+        reasons = rejectionReasons(curV.eval).map(function(r) { r.cls = 'is-bad'; return r; });
+      }
+      verdictEl.textContent = verdictWord;
+      verdictEl.className = 'sticker sticker-lg' + (verdictCls ? ' ' + verdictCls : '');
+      reasons.slice(0, 2).forEach(function(r) {
+        var li = document.createElement('li');
+        if (r.cls) li.className = r.cls;
+        li.innerHTML = '<span class="reason-tag">' + escapeHtml(r.tag) + '</span>' + escapeHtml(r.text);
+        list.appendChild(li);
+      });
+      if (reasons.length > 2) {
+        more.textContent = '+ ' + (reasons.length - 2) + ' more ' + (reasons.length - 2 === 1 ? 'reason' : 'reasons') + ' in the full report';
+        more.hidden = false;
+      }
+
+      // You hear
+      var bT = baseV && baseV.scan && baseV.scan.readout && baseV.scan.readout.transcript;
+      var aT = curV.scan && curV.scan.readout && curV.scan.readout.transcript;
+      setText('readout-before-text', bT || '—');
+      setText('readout-after-text', aT || '—');
+      setText('hear-before-tag', 'v0 baseline');
+      setText('hear-after-tag', 'v' + curV.version + ' ' + versionShortName(curV));
+      document.getElementById('btn-tts-before').disabled = !bT;
+      document.getElementById('btn-tts-after').disabled = !aT;
+      var diff = document.getElementById('hear-diff');
+      if (!isBase && bT && aT) {
+        var same = bT.trim() === aT.trim();
+        diff.textContent = same ? 'Same words as the baseline: nothing new to hear.' : 'Different from the baseline readout.';
+        diff.className = 'hear-diff ' + (same ? 'is-bad' : 'is-good');
+      } else {
+        diff.textContent = '';
+        diff.className = 'hear-diff';
+      }
+      var ttsModel = state.models && state.models.TTS;
+      setText('tts-model-badge', (!ttsModel || ttsModel === 'browser-web-speech') ? 'Voiced by your browser.' : 'Voiced by ' + ttsModel + '.');
+
+      // Hint: jump to the version where axe passes and Placebo rejects (computed, if any)
+      var hint = document.getElementById('hero-hint');
+      var trickV = null;
+      versionNumbers(run).some(function(k) {
+        var vo = getV(run, k);
+        if (k > 0 && vo && vo.scan && vo.scan.total_violations === 0 && vo.eval && !vo.eval.all_pass) { trickV = k; return true; }
+        return false;
+      });
+      var finalV = finalVersionOf(run);
+      if (trickV != null && Number(curV.version) !== trickV) {
+        hint.textContent = 'Show the trick: axe passes v' + trickV + ' (' + versionShortName(getV(run, trickV)) + '), Placebo rejects it →';
+        hint.setAttribute('data-target', String(trickV));
+        hint.hidden = false;
+      } else if (trickV != null && finalV !== trickV) {
+        hint.textContent = '← Back to the final version (v' + finalV + ')';
+        hint.setAttribute('data-target', String(finalV));
+        hint.hidden = false;
+      } else {
+        hint.hidden = true;
+      }
+
+      // One polite announcement per version change
+      var announceKey = run.run_id + ':' + curV.version + ':' + verdictWord + ':' + curCount;
+      if (announceKey !== lastAnnounced) {
+        lastAnnounced = announceKey;
+        setText('hero-live', 'Showing v' + curV.version + ' ' + versionShortName(curV) + '. axe: ' +
+          (curCount == null ? 'not scanned' : curCount + ' violations') + '. Placebo: ' + verdictWord + '.');
+      }
+    }
+
+    // ---------- First screen: model rail + receipt ----------
+    function usageByModel() {
+      var calls = state.spend && state.spend.calls;
+      if (!Array.isArray(calls)) return null;
+      var m = {};
+      calls.forEach(function(c) {
+        var k = c.model || 'unknown';
+        var u = m[k] || (m[k] = {calls: 0, cost: 0, tokens: 0, input: 0, cached: 0});
+        u.calls += 1;
+        u.cost += Number(c.est_cost_usd || 0);
+        u.tokens += Number(c.total_tokens || 0);
+        u.input += Number(c.input_tokens || 0);
+        u.cached += Number(c.cached_tokens || 0);
+      });
+      return m;
+    }
+
+    function renderRail(run) {
+      var models = state.models || {};
+      var usage = usageByModel();
+      var trace = run.trace || [];
+      var groups = run.groups || {};
+      var attempts = {};
+      trace.forEach(function(t) { attempts[t.group_id] = (attempts[t.group_id] || 0) + 1; });
+      function groupsBy(modelId) {
+        var seen = {};
+        trace.forEach(function(t) { if (modelId && t.model === modelId && groups[t.group_id]) seen[t.group_id] = true; });
+        return Object.keys(seen);
+      }
+      var fixGroups = groupsBy(models.FIX);
+      var escGroups = groupsBy(models.ESCALATE);
+
+      var rows = [];
+      // FIX (+ REVIEW when it is the same model)
+      var fixRoles = ['FIX'];
+      if (models.REVIEW && models.REVIEW === models.FIX) fixRoles.push('REVIEW');
+      var fixDid;
+      if (fixGroups.length) {
+        var firstTry = fixGroups.filter(function(g) { return groups[g].status === 'approved' && attempts[g] === 1; }).length;
+        var handoffs = Object.keys(groups).filter(function(g) { return groups[g].status === 'handoff'; }).length;
+        fixDid = 'Diagnosed + patched ' + plural(fixGroups.length, 'root-cause group') + '; ' +
+          firstTry + ' of ' + fixGroups.length + ' passed first try' +
+          (handoffs ? '; ' + plural(handoffs, 'group') + ' handed to a human' : '') + '.';
+      } else {
+        fixDid = 'No patches in this run yet.';
+      }
+      if (run.aviato_diagnosis && run.aviato_diagnosis.model && run.aviato_diagnosis.model === models.REVIEW) {
+        fixDid += ' Also diagnosed Scene D.';
+      }
+      rows.push({roles: fixRoles, id: models.FIX, did: fixDid, idle: !fixGroups.length});
+
+      // ESCALATE
+      var escCalls = (usage && models.ESCALATE && usage[models.ESCALATE]) ? usage[models.ESCALATE].calls : 0;
+      var escDid, escIdle = false;
+      if (!models.ESCALATE) {
+        escDid = 'Not configured on this backend.';
+        escIdle = true;
+      } else if (escGroups.length || escCalls) {
+        escDid = 'Took the second retry for ' + plural(escGroups.length, 'group') + ' after Super failed twice.';
+      } else if (fixGroups.length) {
+        var maxRetries = 0;
+        Object.keys(groups).forEach(function(g) { maxRetries = Math.max(maxRetries, groups[g].retries_used || 0); });
+        escDid = 'Not needed this run' + (maxRetries < 2 ? ': no group reached a second retry.' : '.');
+        escIdle = true;
+      } else {
+        escDid = 'Not called yet. Steps in only on a second retry.';
+        escIdle = true;
+      }
+      rows.push({roles: ['ESCALATE'], id: models.ESCALATE, did: escDid, idle: escIdle});
+
+      // ASSIST
+      // Credit only candidates this role's model drafted (older recordings used another backend)
+      var altKeys = Object.keys(run.alt_candidates || {}).filter(function(k) {
+        return !models.ASSIST || run.alt_candidates[k].model === models.ASSIST;
+      });
+      var drafted = 0;
+      altKeys.forEach(function(k) { drafted += ((run.alt_candidates[k].candidates || []).length); });
+      var picked = Object.keys(run.picked_alts || {}).length;
+      rows.push({
+        roles: ['ASSIST'],
+        id: models.ASSIST,
+        did: altKeys.length
+          ? 'Looked at ' + plural(altKeys.length, 'store image') + ', drafted ' + plural(drafted, 'alt-text candidate') +
+            '; ' + (picked ? 'a human picked ' + picked + '.' : 'waiting for a human to pick.')
+          : 'No images drafted yet.',
+        idle: !altKeys.length
+      });
+
+      // ROUTER
+      var wording = 0, wordingGroups = 0;
+      Object.keys(groups).forEach(function(g) {
+        var n = (groups[g].human_review_items || []).filter(function(x) { return /wording check\]/i.test(x); }).length;
+        wording += n;
+        if (n) wordingGroups += 1;
+      });
+      var routerCalls = (usage && models.ROUTER && usage[models.ROUTER]) ? usage[models.ROUTER].calls : 0;
+      var routerRan = usage ? routerCalls > 0 : fixGroups.length > 0;
+      rows.push({
+        roles: ['ROUTER'],
+        id: models.ROUTER,
+        did: routerRan
+          ? 'Flagged ' + plural(wording, 'wording change') +
+            (wordingGroups ? ' across ' + plural(wordingGroups, 'diff') : '') + ' for the human reviewer.'
+          : 'No diffs to read yet.',
+        idle: !routerRan
+      });
+
+      // Any recorded model outside the current role map (e.g. an older replay)
+      if (usage) {
+        var known = {};
+        rows.forEach(function(r) { if (r.id) known[r.id] = true; });
+        if (models.REVIEW) known[models.REVIEW] = true;
+        Object.keys(usage).forEach(function(mid) {
+          if (!known[mid]) rows.push({roles: ['OTHER'], id: mid, did: 'Called in this recording; not in the current role map.', idle: false});
+        });
+      }
+
+      var body = document.getElementById('rail-body');
+      body.innerHTML = rows.map(function(r) {
+        var u = usage && r.id ? usage[r.id] : null;
+        var calls = usage ? plural(u ? u.calls : 0, 'call') : '—';
+        var cost = (u && u.calls) ? fmtUsd(u.cost) : '—';
+        return '<tr' + (r.idle ? ' class="is-idle"' : '') + '>' +
+          '<td class="role-cell">' + r.roles.map(function(x) { return '<span class="role-tag">' + escapeHtml(x) + '</span>'; }).join('') + '</td>' +
+          '<td class="model-cell"><span class="model-name">' + escapeHtml(modelShort(r.id)) + '</span>' +
+            '<span class="model-id">' + escapeHtml(r.id || 'not configured') + '</span></td>' +
+          '<td class="did">' + escapeHtml(r.did) + '</td>' +
+          '<td class="num" data-label="Calls">' + calls + '</td>' +
+          '<td class="num" data-label="Cost">' + cost + '</td>' +
+        '</tr>';
+      }).join('');
+
+      // Receipt
+      var receipt = document.getElementById('rail-receipt');
+      var label, detail, total;
+      if (usage) {
+        var nCalls = 0, tok = 0, inp = 0, cached = 0, sum = 0;
+        Object.keys(usage).forEach(function(k) {
+          nCalls += usage[k].calls; tok += usage[k].tokens; inp += usage[k].input; cached += usage[k].cached; sum += usage[k].cost;
+        });
+        label = isReplayMode ? 'Whole run' : 'This session';
+        detail = plural(nCalls, 'model call') + ' · ' + fmtTokens(tok) + ' tokens' +
+          (inp ? ' · ' + Math.round(100 * cached / inp) + '% of input served from cache' : '');
+        total = (state.spend && state.spend.total_usd != null) ? state.spend.total_usd : sum;
+      } else {
+        var sp = state.spend || {};
+        label = 'This session';
+        detail = plural(sp.calls_count || 0, 'model call') +
+          (sp.cap_usd != null ? ' · spend cap $' + Number(sp.cap_usd).toFixed(2) : '') +
+          ' · per-model costs appear in recorded runs';
+        total = sp.total_usd || 0;
+      }
+      receipt.innerHTML =
+        '<span class="receipt-label">' + escapeHtml(label) + '</span>' +
+        '<span class="receipt-detail">' + escapeHtml(detail) + '</span>' +
+        '<span class="receipt-leader" aria-hidden="true"></span>' +
+        '<span class="receipt-total"><span class="visually-hidden">Total cost </span>' + fmtUsd(total) + '</span>';
+      setText('rail-scope', isReplayMode ? 'in this recorded run' : 'in this run');
+    }
+
+    function renderActionNotes() {
+      var note = document.getElementById('run-all-note');
+      var sp = (state && (state.liveSpend || state.spend)) || {};
+      if (isReplayMode && !getDemoToken()) {
+        note.textContent = 'Replay: shows the final version';
+      } else if (state && state.demo_token_required && !getDemoToken()) {
+        note.textContent = 'Live on Nemotron · needs a demo token';
+      } else {
+        note.textContent = 'Live on Nemotron' + (sp.cap_usd != null ? ' · $' + Number(sp.cap_usd).toFixed(2) + ' spend cap' : '');
+      }
+    }
+
+    // renderUI rebuilds pills, group rows and trace rows; keep keyboard focus on the same control
+    function focusKey() {
+      var el = document.activeElement;
+      if (!el || el === document.body) return null;
+      if (el.classList.contains('pill')) return '.pill[data-v="' + el.getAttribute('data-v') + '"]';
+      if (el.classList.contains('row-btn')) return '.row-btn[data-attempt="' + el.getAttribute('data-attempt') + '"]';
+      if (el.classList.contains('btn-run-group')) return '.btn-run-group[data-group="' + el.getAttribute('data-group') + '"][data-retry="' + el.getAttribute('data-retry') + '"]';
+      if (el.id) return '#' + el.id;
+      return null;
+    }
+
     function renderUI() {
       if (!state || !state.run) return;
+      var fk = focusKey();
+      renderUIInner();
+      if (fk && (!document.activeElement || document.activeElement === document.body)) {
+        var again = document.querySelector(fk);
+        if (again) again.focus();
+      }
+    }
+
+    function renderUIInner() {
       var run = state.run;
       var curV = run.versions[run.current_version] || run.versions[String(run.current_version)] || run.versions[0] || run.versions['0'];
       var baseV = run.versions[0] || run.versions['0'];
-      var baseCount = (baseV && baseV.scan) ? baseV.scan.total_violations : 58;
+      var baseCount = (baseV && baseV.scan) ? baseV.scan.total_violations : null;
       var curCount = (curV && curV.scan) ? curV.scan.total_violations : baseCount;
+      var baseTxt = baseCount == null ? '—' : String(baseCount);
+      var curTxt = curCount == null ? '—' : String(curCount);
 
       var spend = state.spend ? state.spend.total_usd : 0;
-      document.getElementById('spend-badge').textContent =
-        'Spend: $' + Number(spend).toFixed(4) + ' / $20.00 (' + (run.cost_mode || 'save') + ' mode)';
+      document.getElementById('spend-badge').textContent = isReplayMode
+        ? 'Recorded run cost ' + fmtUsd(spend)
+        : 'Session spend ' + fmtUsd(spend) +
+          (state.spend && state.spend.cap_usd != null ? ' of $' + Number(state.spend.cap_usd).toFixed(2) + ' cap' : '') +
+          ' · ' + (run.cost_mode || 'save') + ' mode';
 
       document.getElementById('btn-download-trace').href = '/api/run/' + encodeURIComponent(run.run_id) + '/trace.json';
-      document.getElementById('results-run-label').textContent = 'Run ' + run.run_id + ' · recorded ' + run.created_at_kst;
+      document.getElementById('results-run-label').textContent = 'Run ' + run.run_id + ' · started ' + run.created_at_kst +
+        (isReplayMode && replayRecordedAt ? ' · saved ' + replayRecordedAt : '');
 
-      // Render Version Selector Bar
-      var vBar = document.getElementById('version-selector-bar');
-      if (vBar) {
-        vBar.innerHTML = '';
-        var vKeys = Object.keys(run.versions || {}).map(Number).sort(function(a, b) { return a - b; });
-        vKeys.forEach(function(vk) {
-          var vo = run.versions[vk] || run.versions[String(vk)];
-          if (!vo) return;
-          var btn = document.createElement('button');
-          btn.type = 'button';
-          var isCur = Number(run.current_version) === vk;
-          var vCount = (vo.scan && vo.scan.total_violations != null) ? vo.scan.total_violations : '…';
-          var statusIcon = '';
-          if (vk > 0 && vo.eval) {
-            statusIcon = vo.eval.all_pass ? ' ✅' : ' ❌';
-          }
-          var shortLbl = 'v' + vk;
-          if (vk === 0) shortLbl = 'v0 Baseline';
-          else if (vo.source === 'scene_a') shortLbl = 'v' + vk + ' Scene A (Cheating)';
-          else if (vo.source === 'scene_a2') shortLbl = 'v' + vk + ' Scene A2';
-          else if (vo.source === 'scene_b') shortLbl = 'v' + vk + ' Scene B (Naive #767676)';
-          else if (vo.source && vo.source.indexOf('group:') === 0) shortLbl = 'v' + vk + ' ' + vo.source.split(':')[1];
-          btn.className = 'btn ' + (isCur ? 'btn-primary' : '');
-          btn.style.padding = '4px 8px';
-          btn.style.fontSize = '11px';
-          btn.textContent = shortLbl + ' (' + vCount + ')' + statusIcon;
-          btn.addEventListener('click', function() { selectVersion(vk); });
-          vBar.appendChild(btn);
-        });
-      }
+      renderVersionPills(run);
+      renderHero(run, curV, baseV);
+      renderRail(run);
+      renderActionNotes();
 
       // Count human review items across groups
       var hrCount = 0;
@@ -701,7 +1617,7 @@
       }
 
       document.getElementById('headline-summary').textContent =
-        'axe violations ' + baseCount + ' → ' + curCount + ', ' + hrCount + ' items need human review';
+        'axe violations ' + baseTxt + ' → ' + curTxt + ', ' + hrCount + ' items need human review';
 
       document.getElementById('active-version-badge').textContent =
         'v' + curV.version + ' — ' + curV.label + (curV.is_fallback ? ' [Fallback model: ' + curV.model + ']' : '');
@@ -713,7 +1629,7 @@
 
       if (curV.scan) {
         document.getElementById('val-axe').textContent =
-          curV.version === 0 ? (curV.scan.total_violations + ' violations') : (baseCount + ' → ' + curV.scan.total_violations);
+          curV.version === 0 || Number(curV.version) === 0 ? (curV.scan.total_violations + ' violations') : (baseTxt + ' → ' + curV.scan.total_violations);
         var rulesStr = Object.keys(curV.scan.by_rule || {}).map(function(k) {
           return k + ': ' + curV.scan.by_rule[k];
         }).join(' · ');
@@ -724,8 +1640,11 @@
           boxAxe.className = 'verdict-box fail';
         } else {
           document.getElementById('sub-axe').textContent = rulesStr || '0 violations across 4 pages';
-          boxAxe.className = 'verdict-box ' + (curV.scan.total_violations < baseCount ? 'pass' : 'fail');
+          boxAxe.className = 'verdict-box ' + (baseCount != null && curV.scan.total_violations < baseCount ? 'pass' : 'fail');
         }
+      } else {
+        document.getElementById('val-axe').textContent = '—';
+        boxAxe.className = 'verdict-box';
       }
 
       var rejBox = document.getElementById('rejection-reasons-box');
@@ -757,7 +1676,7 @@
         }
         if (reasons.length) {
           rejBox.style.display = 'block';
-          rejBox.innerHTML = '<strong>Patch Rejected:</strong><ul style="margin:4px 0 0; padding-left:18px;">' +
+          rejBox.innerHTML = '<strong>Patch rejected:</strong><ul style="margin:4px 0 0; padding-left:18px;">' +
             reasons.map(function(r) { return '<li>' + escapeHtml(r) + '</li>'; }).join('') + '</ul>';
         } else {
           rejBox.style.display = 'none';
@@ -785,14 +1704,6 @@
         rejBox.style.display = 'none';
       }
 
-      // Update Readout (Scene C)
-      if (baseV && baseV.scan && baseV.scan.readout && baseV.scan.readout.transcript) {
-        document.getElementById('readout-before-text').textContent = baseV.scan.readout.transcript;
-      }
-      if (curV && curV.scan && curV.scan.readout && curV.scan.readout.transcript) {
-        document.getElementById('readout-after-text').textContent = curV.scan.readout.transcript;
-      }
-
       // Render Approval Panel
       var appPanel = document.getElementById('approval-panel');
       if (curV.version > 0 && curV.diff) {
@@ -801,7 +1712,7 @@
           curV.label + (curV.is_fallback ? ' [Fallback model: ' + curV.model + ']' : '');
         var hItems = (curV.eval && curV.eval.guard && curV.eval.guard.human_review_items) || [];
         document.getElementById('approval-counts').textContent =
-          'axe violations ' + baseCount + ' → ' + curCount + ', ' + hItems.length + ' items need human review';
+          'axe violations ' + baseTxt + ' → ' + curTxt + ', ' + hItems.length + ' items need human review';
         document.getElementById('btn-download-diff').href =
           '/api/run/' + encodeURIComponent(run.run_id) + '/diff/' + curV.version + '.patch';
         document.getElementById('diff-view').textContent = curV.diff;
@@ -844,7 +1755,7 @@
             actionHtml += ' <button class="btn btn-warn btn-run-group" data-group="' + gid + '" data-retry="1" type="button">Retry with Feedback</button>';
           }
         } else {
-          actionHtml = '<button id="btn-draft-alts" class="btn btn-primary" type="button">Draft 3 Alt Candidates (Flash)</button>';
+          actionHtml = '<button id="btn-draft-alts" class="btn btn-primary" type="button">Draft 3 alt candidates (' + escapeHtml(modelShort(state.models && state.models.ASSIST)) + ')</button>';
         }
 
         row.innerHTML =
@@ -893,10 +1804,10 @@
           var picked = run.picked_alts[imgId] || item.candidates[0];
           var div = document.createElement('div');
           div.style.padding = '6px 0';
-          div.style.borderBottom = '1px solid var(--border)';
+          div.style.borderBottom = '1px solid var(--rule)';
           var radios = item.candidates.map(function(cand, cIdx) {
             var checked = cand === picked ? 'checked' : '';
-            return '<label style="margin-right:12px; cursor:pointer;">' +
+            return '<label>' +
               '<input type="radio" name="alt_' + escapeHtml(imgId) + '" data-img="' + escapeHtml(imgId) + '" value="' + escapeHtml(cand) + '" ' + checked + '> ' +
               escapeHtml(cand) + '</label>';
           }).join('');
@@ -921,8 +1832,8 @@
           var hTxt = t.hidden_check_passed == null ? '—' : (t.hidden_check_passed ? '✅ Pass' : '❌ Failed (hidden)');
           var cacheStr = t.cache_hit_pct != null ? (' · cache ' + t.cache_hit_pct + '%') : '';
           var tokTxt = (t.tokens || 0) + ' tok' + cacheStr + ' · $' + Number(t.est_cost_usd || 0).toFixed(4);
-          return '<tr data-ver="' + t.version + '" style="cursor:pointer;" title="Click to inspect v' + t.version + '">' +
-            '<td>' + t.attempt + '</td>' +
+          return '<tr data-ver="' + t.version + '" style="cursor:pointer;">' +
+            '<td><button type="button" class="row-btn" data-attempt="' + t.attempt + '"><span class="visually-hidden">Show attempt </span>' + t.attempt + '</button></td>' +
             '<td><strong>' + escapeHtml(t.group_id) + ' (v' + t.version + ')</strong></td>' +
             '<td>' + escapeHtml(modelTxt) + '</td>' +
             '<td>' + escapeHtml(vTxt) + '</td>' +
@@ -942,7 +1853,7 @@
 
       // Render Results Summary Table
       document.getElementById('res-violations').textContent =
-        'axe violations ' + baseCount + ' → ' + curCount + ', ' + hrCount + ' items need human review';
+        'axe violations ' + baseTxt + ' → ' + curTxt + ', ' + hrCount + ' items need human review';
       var regList = run.regressions_caught || [];
       document.getElementById('res-regressions').textContent = regList.length
         ? (regList.length + ' (' + regList.map(function(r) { return r.source; }).join(', ') + ')')
@@ -954,7 +1865,7 @@
         if (t.cache_hit_pct != null) maxCache = t.cache_hit_pct + '%';
       });
       document.getElementById('res-spend').textContent =
-        '$' + Number(spend).toFixed(4) + ' · Token Factory cache hit: ' + maxCache;
+        fmtUsd(spend) + ' · Token Factory cache hit (last attempt): ' + maxCache;
     }
 
     function escapeHtml(s) {
@@ -1128,9 +2039,22 @@
       }
     }
 
+    function speakInBrowser(txt) {
+      if (!window.speechSynthesis) {
+        logLine('This browser has no speech synthesis; the readout text is shown instead.');
+        return;
+      }
+      window.speechSynthesis.cancel();
+      var u = new SpeechSynthesisUtterance(txt);
+      u.lang = 'en-US';
+      u.rate = 1.05;
+      window.speechSynthesis.speak(u);
+    }
+
     async function playTts(which) {
       var runId = state.run.run_id;
       var txt = document.getElementById(which === 'before' ? 'readout-before-text' : 'readout-after-text').textContent.trim();
+      if (!txt || txt === '—') return;
       var audioEl = document.getElementById(which === 'before' ? 'audio-before' : 'audio-after');
       if (state.run.tts_cache && state.run.tts_cache[txt] && state.run.tts_cache[txt].audio_data_url) {
         audioEl.src = state.run.tts_cache[txt].audio_data_url;
@@ -1139,13 +2063,20 @@
         return;
       }
       logLine('Voicing readout (screen-reader style): "' + txt + '"');
+      var ttsModel = state.models && state.models.TTS;
+      if (!ttsModel || ttsModel === 'browser-web-speech') {
+        // No speech model on this backend: voice it in the browser directly (no server call, works without a demo token)
+        speakInBrowser(txt);
+        return;
+      }
       var resp = await fetch('/api/run/' + encodeURIComponent(runId) + '/tts', {
         method: 'POST',
         headers: authHeaders(),
         body: JSON.stringify({ text: txt })
       });
       if (!resp.ok) {
-        logLine('TTS call failed (check demo token).');
+        logLine('Server TTS unavailable (HTTP ' + resp.status + '); voicing in the browser instead.');
+        speakInBrowser(txt);
         return;
       }
       var data = await resp.json();
@@ -1154,13 +2085,9 @@
         audioEl.src = data.tts.audio_data_url;
         audioEl.style.display = 'block';
         audioEl.play();
-      } else if (window.speechSynthesis) {
+      } else {
         // No server TTS on the Nebius backend: voice the readout in the browser like a real screen reader would
-        window.speechSynthesis.cancel();
-        var u = new SpeechSynthesisUtterance(txt);
-        u.lang = 'en-US';
-        u.rate = 1.05;
-        window.speechSynthesis.speak(u);
+        speakInBrowser(txt);
       }
     }
 
@@ -1227,7 +2154,7 @@
         return '<div class="readout-card" style="margin-bottom:8px;">' +
           '<div><span class="badge badge-amber">' + escapeHtml(f.badge) + '</span> <strong>' + escapeHtml(f.title) + '</strong> (' + f.count + ' hits)</div>' +
           '<div style="color:var(--muted); font-size:12px; margin-top:4px;">' + escapeHtml(f.explanation) + '</div>' +
-          '<div style="font-family:monospace; font-size:11px; margin-top:4px; color:#cbd5e1;">' + (f.examples || []).map(escapeHtml).join('<br>') + '</div>' +
+          '<div class="ex-code">' + (f.examples || []).map(escapeHtml).join('<br>') + '</div>' +
         '</div>';
       }).join('');
 
@@ -1239,10 +2166,10 @@
         '<div style="margin-bottom:8px;"><strong>axe-core across 5 Aviato pages:</strong> ' + (scan.total_violations || 0) + ' violations · ' +
         'Incomplete items (listed separately): ' + ((scan.incomplete || []).length) + ' · Model: <span class="badge badge-blue">' + escapeHtml(model) + '</span></div>' +
         findingsHtml +
-        '<div class="readout-card" style="border-color:var(--accent);">' +
-          '<div><strong>Nemotron Root-Cause Diagnosis:</strong> ' + escapeHtml(diag.headline || '') + '</div>' +
+        '<div class="readout-card is-accent">' +
+          '<div><strong>Nemotron root-cause diagnosis:</strong> ' + escapeHtml(diag.headline || '') + '</div>' +
           (causesHtml ? ('<ul style="margin:6px 0; padding-left:18px;">' + causesHtml + '</ul>') : '') +
-          '<div style="color:#bae6fd; font-size:12px;">' + escapeHtml(diag.why_axe_alone_is_not_enough || '') + '</div>' +
+          '<div class="note-info">' + escapeHtml(diag.why_axe_alone_is_not_enough || '') + '</div>' +
         '</div>';
     }
 
@@ -1265,7 +2192,11 @@
       var vKeys = Object.keys(state.run.versions).map(Number).sort(function(a, b) { return a - b; });
       for (var i = 0; i < vKeys.length; i++) {
         var vo = state.run.versions[vKeys[i]] || state.run.versions[String(vKeys[i])];
-        if (vo && vo.source && vo.source.indexOf(srcPrefix) === 0) return vKeys[i];
+        if (!vo) continue;
+        if (vo.source && vo.source.indexOf(srcPrefix) === 0) return vKeys[i];
+        // Recorded runs name group patches by group_id (source "argon_patch" / "assist_alt")
+        var gid = versionGroupId(vo);
+        if (gid && ('group:' + gid) === srcPrefix) return vKeys[i];
       }
       return null;
     }
@@ -1273,18 +2204,29 @@
     function applyReplayPayload(payload) {
       if (!payload || !payload.run) return;
       isReplayMode = true;
+      if (state.spend && !state.liveSpend) state.liveSpend = state.spend;
       state.run = payload.run;
       if (payload.spend) {
         state.spend = payload.spend;
       }
+      replayRecordedAt = payload.recorded_at_kst || state.run.created_at_kst || null;
+      var run = state.run;
+      var vNums = versionNumbers(run);
+      var finalV = finalVersionOf(run);
+      var b0 = getV(run, 0), vf = getV(run, finalV);
+      var bCount = b0 && b0.scan ? b0.scan.total_violations : '—';
+      var fCount = vf && vf.scan ? vf.scan.total_violations : '—';
+      var usedModels = {};
+      (run.trace || []).forEach(function(t) { if (t.model && run.groups && run.groups[t.group_id]) usedModels[t.model] = true; });
+
       var rb = document.getElementById('replay-banner');
       rb.style.display = 'block';
-      rb.textContent = 'Replaying recorded run (' + (payload.recorded_at_kst || state.run.created_at_kst || 'recorded') + ') — Run ID: ' + state.run.run_id + ' · Click any version pill (v0–v8) or scene button to inspect.';
-      setStepState(1, 'done (58 baseline violations)', 'done');
-      setStepState(2, 'done (' + (state.models ? state.models.FIX + ' + ' + state.models.ASSIST : 'Nemotron') + ')', 'done');
-      setStepState(3, 'done (58 → 0 violations)', 'done');
-      setStepState(4, 'done (0 handoffs)', 'done');
-      setStepState(5, 'Approved & active in /preview', 'done');
+      rb.textContent = '· replaying a recorded run: pick any version, v' + (vNums[0] || 0) + '–v' + (vNums[vNums.length - 1] || 0);
+      setStepState(1, 'done (' + bCount + ' baseline violations)', 'done');
+      setStepState(2, 'done (' + (Object.keys(usedModels).join(' + ') || 'no model patches') + ')', 'done');
+      setStepState(3, 'done (' + bCount + ' → ' + fCount + ' violations)', 'done');
+      setStepState(4, 'done (' + plural(run.handoffs_count || 0, 'handoff') + ')', 'done');
+      setStepState(5, vf && vf.approved ? 'Approved & active in /preview' : 'waiting for approval', 'done');
       frame.src = '/preview/' + encodeURIComponent(state.run.run_id) + '/v' + state.run.current_version + '/' + currentPage;
       if (state.run.aviato_findings && state.run.aviato_diagnosis) {
         renderSceneDResult({
@@ -1296,7 +2238,9 @@
     }
 
     async function refreshState() {
-      var resp = await fetch('/api/state');
+      // ask for our own run: without run_id the server answers with whichever run was created last
+      var rid = state && state.run ? '?run_id=' + encodeURIComponent(state.run.run_id) : '';
+      var resp = await fetch('/api/state' + rid);
       state = await resp.json();
       renderUI();
     }
@@ -1330,10 +2274,20 @@
       }
       runPrebuiltScene('scene_b');
     });
-    document.getElementById('btn-run-all').addEventListener('click', function() {
+    document.getElementById('btn-run-all').addEventListener('click', async function() {
       if (isReplayMode && !getDemoToken()) {
-        selectVersion(8);
+        selectVersion(finalVersionOf(state.run));
         return;
+      }
+      // a live autopilot gets its own run, so two visitors never drive the same one
+      if (isReplayMode || Object.keys(state.run.versions || {}).length > 1) {
+        var resp = await fetch('/reset', { method: 'POST', headers: authHeaders() });
+        if (!resp.ok) { logLine('Could not start a fresh run: HTTP ' + resp.status); return; }
+        state.run = (await resp.json()).run;
+        isReplayMode = false;
+        var banner = document.getElementById('replay-banner');
+        if (banner) banner.style.display = 'none';
+        renderUI();
       }
       runAllGroupsSequential();
     });
@@ -1368,6 +2322,8 @@
     });
     document.getElementById('btn-reset').addEventListener('click', async function() {
       isReplayMode = false;
+      replayRecordedAt = null;
+      if (state && state.liveSpend) { state.spend = state.liveSpend; state.liveSpend = null; }
       var resp = await fetch('/reset', { method: 'POST', headers: authHeaders() });
       if (!resp.ok) {
         selectVersion(0);
@@ -1388,6 +2344,13 @@
     document.getElementById('btn-watch-replay').addEventListener('click', function() {
       loadRecordedReplay('default');
     });
+    document.getElementById('hero-hint').addEventListener('click', function() {
+      var t = this.getAttribute('data-target');
+      if (t != null) selectVersion(Number(t));
+    });
+    document.getElementById('demo-token-input').addEventListener('input', function() {
+      if (state) renderActionNotes();
+    });
     document.getElementById('load-trace-file').addEventListener('change', function(ev) {
       var file = ev.target.files && ev.target.files[0];
       if (!file) return;
@@ -1405,10 +2368,27 @@
       reader.readAsText(file);
     });
 
+    // Theme toggle (dark by default)
+    var themeBtn = document.getElementById('btn-theme');
+    function syncThemeButton() {
+      var isLight = document.documentElement.getAttribute('data-theme') === 'light';
+      themeBtn.textContent = isLight ? 'Dark theme' : 'Light theme';
+    }
+    themeBtn.addEventListener('click', function() {
+      var next = document.documentElement.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
+      document.documentElement.setAttribute('data-theme', next);
+      try { localStorage.setItem('placebo-theme', next); } catch (e) {}
+      syncThemeButton();
+    });
+    syncThemeButton();
+
     var pageTabs = document.querySelectorAll('.page-tab');
     for (var t = 0; t < pageTabs.length; t++) {
       pageTabs[t].addEventListener('click', function() {
         currentPage = this.getAttribute('data-page');
+        for (var k = 0; k < pageTabs.length; k++) {
+          pageTabs[k].setAttribute('aria-pressed', pageTabs[k] === this ? 'true' : 'false');
+        }
         if (state && state.run) {
           frame.src = '/preview/' + encodeURIComponent(state.run.run_id) + '/v' + state.run.current_version + '/' + currentPage;
         }
