@@ -572,6 +572,11 @@ def evaluate_six_conditions(
                 hidden_failures.append(
                     f"{page}: {label} dropped ({b_val} -> {c_val})"
                 )
+        if cp.get("head_in_body", 0) > bp.get("head_in_body", 0):
+            hidden_failures.append(
+                f"{page}: <title>/<meta>/<link> ended up inside <body> ({bp.get('head_in_body', 0)} -> "
+                f"{cp.get('head_in_body', 0)}); a shared partial probably closes </head> early"
+            )
         if cp.get("hidden_style_elements", 0) > bp.get("hidden_style_elements", 0):
             hidden_failures.append(
                 f"{page}: newly hidden/clipped/transparent elements detected ({bp.get('hidden_style_elements', 0)} -> {cp.get('hidden_style_elements', 0)})"

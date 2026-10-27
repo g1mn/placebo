@@ -1100,7 +1100,8 @@
         if (g.status === 'approved') continue;
         await runArgonGroup(gid, false);
         var updatedG = state.run.groups[gid];
-        if (updatedG.status === 'retry_needed' && updatedG.retries_used < 2) {
+        // up to 2 retries with verifier feedback: Super, then Ultra (server picks the model)
+        for (var r = 0; r < 2 && updatedG.status === 'retry_needed' && updatedG.retries_used < 2; r++) {
           await runArgonGroup(gid, true);
           updatedG = state.run.groups[gid];
         }

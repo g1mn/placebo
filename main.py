@@ -405,10 +405,14 @@ def _build_verifier_runner_script(
 
     var visibleTextLen = 0;
     var hiddenStyleElements = 0;
+    var srOnlyElements = 0;
+    // head-only elements that the parser left inside <body> (e.g. a partial closed </head> early); never rendered
+    var headInBody = document.body ? document.body.querySelectorAll('title, meta, link, base').length : 0;
     var allEls = document.body ? document.body.querySelectorAll('*') : [];
     for (var i = 0; i < allEls.length; i++) {{
       var el = allEls[i];
       if (el.tagName === 'SCRIPT' || el.tagName === 'STYLE' || el.tagName === 'SVG' || el.tagName === 'PATH') continue;
+      if (el.tagName === 'TITLE' || el.tagName === 'META' || el.tagName === 'LINK' || el.tagName === 'BASE') continue;
       var cs = window.getComputedStyle(el);
       var isHiddenAttr = el.hasAttribute('hidden') || el.closest('[hidden]');
       var isHiddenCss = (
@@ -421,10 +425,16 @@ def _build_verifier_runner_script(
         (cs.clip && cs.clip !== 'auto' && cs.clip.indexOf('0px') !== -1) ||
         (cs.clipPath && cs.clipPath !== 'none' && cs.clipPath.indexOf('0') !== -1)
       );
-      if (!isHiddenAttr && isHiddenCss) {{
+      var rect = el.getBoundingClientRect();
+      // visually-hidden text (the 1px clip pattern) stays in the accessibility tree: a legitimate way to label
+      // non-interactive content, so it is not counted as harm; hiding a control this way still counts
+      var srOnly = isHiddenCss && cs.position === 'absolute' && rect.width <= 1 && rect.height <= 1 &&
+        cs.display !== 'none' && cs.visibility !== 'hidden' && !el.matches('a, button, input, select, textarea');
+      if (srOnly) {{
+        srOnlyElements++;
+      }} else if (!isHiddenAttr && isHiddenCss) {{
         hiddenStyleElements++;
       }}
-      var rect = el.getBoundingClientRect();
       if (!isHiddenAttr && !isHiddenCss && rect.width > 0 && rect.height > 0 && rect.right > 0 && rect.bottom > 0) {{
         for (var c = 0; c < el.childNodes.length; c++) {{
           var node = el.childNodes[c];
@@ -441,7 +451,9 @@ def _build_verifier_runner_script(
       select_count: selectCount,
       img_count: imgCount,
       visible_text_length: visibleTextLen,
-      hidden_style_elements: hiddenStyleElements
+      hidden_style_elements: hiddenStyleElements,
+      sr_only_elements: srOnlyElements,
+      head_in_body: headInBody
     }};
   }}
 
@@ -1034,6 +1046,8 @@ async def stream_group_patch(
             status_code=400,
             detail="image-alt never goes through Argon; use /api/run/{run_id}/draft-alts instead.",
         )
+    if group_state["status"] == "running":  # a second click while a round is in flight would double the retry count
+        raise HTTPException(status_code=409, detail=f"Group {group_id} is already running")
 
     queue: asyncio.Queue[dict[str, Any] | None] = asyncio.Queue()
 
@@ -1053,7 +1067,9 @@ async def stream_group_patch(
                 group_state["retries_used"] += 1
                 last_cand_v = run["versions"].get(group_state.get("candidate_version") or 0)
                 eval_res = (last_cand_v or {}).get("eval") or {}
-                feedback = build_retry_feedback(eval_res) if eval_res else {"verdict": "RETRY_NEEDED"}
+                # a guard-blocked candidate never gets scanned, so it has no eval: still tell the model why
+                feedback = build_retry_feedback(eval_res) if eval_res else {
+                    "verdict": "RETRY_NEEDED", "guard_rejections": ((last_cand_v or {}).get("guard") or {}).get("reasons", [])}
                 input_payload = list(group_state.get("last_companion_results") or []) + [
                     {
                         "type": "function_result",
@@ -1094,9 +1110,12 @@ async def stream_group_patch(
                     "by_rule": prev_scan.get("by_rule", {}),
                 },
                 on_event=on_event,
+                attempt=group_state["retries_used"] if is_retry_call else 0,  # 2nd retry escalates to Ultra
             )
 
             if res["status"] == "cutoff_replay":
+                group_state["status"] = "handoff"
+                group_state["handoff_reason"] = "cutoff_replay"
                 on_event({"type": "cutoff_replay", "reason": res.get("reason", "cutoff_exceeded")})
                 return
 
@@ -1104,7 +1123,7 @@ async def stream_group_patch(
                 reason = res.get("reason") or res["status"]
                 if reason == "timeout":
                     group_state["timeouts"] += 1
-                    if group_state["timeouts"] < 2:
+                    if group_state["timeouts"] < 2 and group_state["retries_used"] < 2:
                         group_state["status"] = "retry_needed"
                         on_event({"type": "error", "message": "Timeout on round; 1 retry available."})
                         return
@@ -1181,6 +1200,7 @@ async def stream_group_patch(
             group_state["candidate_version"] = new_v
             if guard_res["can_render"]:
                 run["current_version"] = new_v
+                group_state["status"] = "verifying"  # record-scan sets the verdict; not "running", so no 409 lock-in
             else:
                 group_state["guard_rejections"] += 1
                 if group_state["guard_rejections"] >= 2:

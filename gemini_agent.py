@@ -205,7 +205,7 @@ CRITICAL RULES:
    - Header menu toggle button (`#header-menu-toggle` / `.menu-toggle`): `aria-label="Menu"`
    - Footer social links (`#footer-social-instagram`, `#footer-social-journal`): `aria-label="Instagram"` and `aria-label="Journal"`
    - Newsletter email input (`#newsletter-email`): add an explicit `<label for="newsletter-email">Email address</label>` (never rely on placeholder or title alone)
-   - HTML language (`partials/layout-top.html`): set `<html lang="en">`
+   - HTML language (`partials/layout-top.html`): set `<html lang="en">`. This partial is only the top of every page and deliberately leaves `<head>` open (each page adds its own `<title>`, `</head>` and `<body>`), so never add `</head>` or `<body>` to it
    - Color contrast (`css/tokens.css` and `css/styles.css`): notice the dual-context token trap! `--color-text-muted: #8C8C8C` is used both on white `#FFFFFF` in the body (`.product-meta`, `.shipping-note`, `.line-meta`, `.cart-note`, `.field-hint`, `.summary-note` — where `#8C8C8C` fails 4.5:1 at 3.36:1) AND on dark `#1C1F26` in the header/footer (`.utility-note`, `.footer-note` — where `#8C8C8C` passes at 4.90:1). Simply darkening `--color-text-muted` to `#595959` or `#767676` will break contrast on the dark `#1C1F26` header/footer! Instead, split the token by surface role: e.g. set `--color-text-muted: #595959` (7.0:1 on white) for the body classes and introduce `--color-text-muted-on-dark: #A6ADBB` (or keep `#8C8C8C` / `var(--color-text-on-dark-soft)`) for `.utility-note, .footer-note` in `css/styles.css`!
 3. Fix ONLY the active group's rule (`active_violations`) in this turn so each root-cause group is verified one at a time. When a file appears under `CURRENT APPROVED FILE OVERRIDES`, you MUST start from that current approved file content and preserve all existing fixes (`aria-label`, `<label>`, `lang="en"`, CSS tokens) already present in it!
 4. Never remove or rename any existing `id` attribute. Never delete content, hide elements (`display:none`, `visibility:hidden`, `opacity:0`, `hidden`), or add `<script>` tags.
@@ -334,6 +334,7 @@ class GeminiRuntime:
         current_files: dict[str, str],
         baseline_scan_summary: dict[str, Any],
         on_event: Callable[[dict[str, Any]], None] | None = None,
+        attempt: int = 0,
     ) -> dict[str, Any]:
         """
         Execute one Argon diagnose+patch round (up to 3 hops if read_file/run_scan/update precedes propose_patch).
