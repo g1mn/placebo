@@ -1,14 +1,44 @@
-# Placebo
+<p align="center"><img src="static/logo.svg" width="88" alt="Placebo logo"></p>
 
-**A Nemotron coding agent that fixes accessibility at the source, and can't fool its own tests. Hear the difference.**
+<h1 align="center">Placebo</h1>
 
-[Watch the recorded run](https://placebo-uluj.onrender.com/?replay=demo-run) (no token needed) · [Live demo](https://placebo-uluj.onrender.com) (live runs need the judge token from the Devpost testing instructions) · [Video (2:50)](https://youtu.be/z8mr49CeTvI) · [Feedback on Token Factory and Nemotron](FEEDBACK.md)
+<p align="center"><strong>A Nemotron coding agent that fixes accessibility at the source, and can't fool its own tests. Hear the difference.</strong></p>
 
-> The demo runs on Render's free plan. If nobody has opened it for a while, the first load can take about a minute.
+<p align="center"><sub>A browser readout of the accessible names, before → after</sub><br><code>"button. link. button. image."</code> → <code>"Search. Cart. Menu. Navy wool coat."</code></p>
+
+<p align="center">Built for the <a href="https://nebiusglobalaihackathon.devpost.com/">Nebius x NVIDIA Global AI Hackathon</a> (Coding and Agentic Engineering track).</p>
+
+<p align="center">
+  <a href="https://youtu.be/z8mr49CeTvI"><img alt="Watch the demo, 2:50" src="https://img.shields.io/badge/Watch_the_demo-2%3A50-e7b04a?style=flat-square&labelColor=14110e"></a>
+  <a href="https://placebo-uluj.onrender.com/?replay=demo-run"><img alt="Recorded run, no token" src="https://img.shields.io/badge/Recorded_run-no_token-f3ead7?style=flat-square&labelColor=14110e"></a>
+  <a href="https://placebo-uluj.onrender.com"><img alt="Live demo, judge token" src="https://img.shields.io/badge/Live_demo-judge_token-f3ead7?style=flat-square&labelColor=14110e"></a>
+  <a href="https://devpost.com/software/placebo"><img alt="Devpost" src="https://img.shields.io/badge/Devpost-e7b04a?style=flat-square"></a>
+  <a href="FEEDBACK.md"><img alt="Feedback on Token Factory and Nemotron" src="https://img.shields.io/badge/Feedback-Token_Factory_%26_Nemotron-f3ead7?style=flat-square&labelColor=14110e"></a>
+  <a href="LICENSE"><img alt="License, MIT" src="https://img.shields.io/badge/License-MIT-f3ead7?style=flat-square&labelColor=14110e"></a>
+</p>
+
+> Live runs need the judge token from the Devpost testing instructions. The demo runs on Render's free plan. If nobody has opened it for a while, the first load can take about a minute.
+
+<p align="center"><a href="https://youtu.be/z8mr49CeTvI"><img src="docs/assets/demo-video.jpg" width="720" alt="Placebo demo video (2:50). Opening frame: a checker-only patch by Nemotron Super makes axe-core report 0 violations while the product page loses 37% of its text and the Add to cart button. Click to watch on YouTube."></a></p>
+
+## At a glance
+
+Measured on Oct 27, 2026, on a static HTML/CSS demo store we built with 58 planted defects across 4 pages ([DEFECTS.md](DEFECTS.md)), from [`bench/results/summary-2026-10-27.json`](bench/results/summary-2026-10-27.json). Costs are estimates; see [Measured on Oct 27, 2026](#measured-on-oct-27-2026) for how they were made and for the caveats.
+
+| Result | What was measured |
+|---|---|
+| **25 / 25** | Root-cause groups passing all checks on the first try (Placebo on Nemotron, 5 end-to-end runs), ending at 58 → 0 axe violations in 5 / 5 runs |
+| **4 of 8** | [Checker-only loop](#checker-only-loop-vs-placebo-same-model) on the same Nemotron Super: out of 10 runs, 8 reached axe 0, and Placebo would have rejected 4 of those 8 (1 by the held-out condition 6, 3 by the Guard). The loop's prompt was neutral while Placebo's carries notes about this store, so this shows what Placebo's checks catch that axe misses, not that Placebo writes better fixes. |
+| **$0.048** | Patch-model cost per run (median). Whole run incl. Super-VL and Nano (median): $0.055 |
+| **81 s** | Patch-model time per run (median) |
+
+**Contents:** [Problem](#the-problem-in-30-seconds) · [Two verdicts](#two-verdicts-same-axe-score) · [How it works](#how-it-works) · [Who does what](#who-does-what-nemotron-on-nebius-token-factory) · [Verdict](#what-a-verdict-is-made-of) · [Measured](#measured-on-oct-27-2026) · [Checker-only loop](#checker-only-loop-vs-placebo-same-model) · [What Nemotron got wrong](#what-nemotron-got-wrong-and-how-placebo-copes) · [Spend controls](#spend-controls-on-the-public-demo) · [Limitations](#limitations) · [Since Oct 16](#what-changed-since-oct-16) · [Run it locally](#run-it-locally) · [Credits](#credits-and-licenses)
 
 ## The problem in 30 seconds
 
 An AI patch can make an accessibility checker report **zero violations** while the page gets worse. It can stamp `alt="image"` on every product photo, hide the low-contrast text, or delete what failed. The checker is happy, and a blind shopper hears nothing better.
+
+It does not even take an intent to cheat. In our [checker-only benchmark](#checker-only-loop-vs-placebo-same-model), a one-character typo from Nemotron Super, `</option` with no closing `>`, swallowed the rest of a product page: 37% of its visible text disappeared (890 → 564 characters), and axe-core reported zero violations. (The cheating patches shown in the demo's Scenes A, A2 and B are prebuilt and labeled "not model output".)
 
 Placebo is a coding agent that cannot win that way.
 
@@ -26,17 +56,36 @@ to
 
 > "Search. Cart. Menu. Navy wool coat."
 
+## Two verdicts, same axe score
+
+Both versions below take axe-core from 58 to 0 violations. Placebo rejects one and verifies the other. Screenshots from the public [recorded run](https://placebo-uluj.onrender.com/?replay=demo-run).
+
+<p align="center"><img src="docs/assets/verdict-rejected.png" width="880" alt="Placebo verdict card for v1, Scene A, a prebuilt cheating patch: axe says 58 to 0, AXE: PASS; Placebo says REJECTED, citing a hidden check the model never saw (a newly added display:none rule) and the Guard (alt=image is not a description); the readout is the same as the baseline."></p>
+<p align="center"><sub><strong>REJECTED.</strong> v1, Scene A: a prebuilt cheating patch (labeled "not model output"). axe-core reports zero violations; Placebo rejects it, including on a check the patch model never sees.</sub></p>
+
+<p align="center"><img src="docs/assets/verdict-verified.png" width="880" alt="Placebo verdict card for v9, image-alt: axe says 58 to 0; Placebo says VERIFIED, 6 of 6 pass conditions passed; the readout changes from button. link. button. image. to Search. Cart. Menu. Navy wool coat."></p>
+<p align="center"><sub><strong>VERIFIED.</strong> v9, image-alt group: all six checks pass, and the readout changes. In this recording, the recording script stood in for the reviewer and accepted the pre-selected description for each image.</sub></p>
+
+## How it works
+
+<p align="center"><a href="https://placebo-uluj.onrender.com/static/how-it-works.html"><img src="docs/assets/how-it-works.svg" width="880" alt="How Placebo works: Nemotron Super writes a patch for one root-cause group; the Guard checks it; Placebo renders and scans the patched store with axe-core on four pages; six conditions decide, one of them hidden from the model; visible failures go back to the model for up to two retries, the second on Ultra; a failure of hidden condition 6 goes straight to a person; every verdict gets its WCAG source via Tavily; Nano flags wording changes for review; a person merges the diff by applying the .patch. Super-VL drafts alt text and a person picks a preset or a draft."></a></p>
+<p align="center"><sub>Models propose. Deterministic code decides. A person merges. · <a href="https://placebo-uluj.onrender.com/static/how-it-works.html">Open the interactive version</a> (every box links to the code)</sub></p>
+
+In autopilot the page itself approves each code-group patch that passes every check, so the next group builds on it. Placebo writes nothing to disk: the diff leaves as a `.patch` file that a person applies.
+
 ## Who does what: Nemotron on Nebius Token Factory
 
 Every model call goes to Nebius Token Factory (`https://api.tokenfactory.nebius.com/v1`, OpenAI-compatible chat completions with tools) through `_chat` in [`nebius_runtime.py`](nebius_runtime.py). Prices are per 1M tokens, as `GET /v1/models?verbose=true` returned them on Oct 27, 2026.
 
-| Role | Model | $ in / cached in / out | What it does | Where |
-|---|---|---|---|---|
-| FIX | `nvidia/nemotron-3-super-120b-a12b` | 0.30 / 0.06 / 0.90 | Diagnoses one root-cause group and proposes whole-file patches through tool calls (`update`, `submit_diagnosis`, `propose_patch`, `read_file`, `run_scan`, `escalate_group`) | `NebiusRuntime.run_argon_turn` |
-| ESCALATE | `nvidia/Nemotron-3-Ultra-550b-a55b` | 1.00 / 0.12 / 3.00 | Called only on a group's second retry: Super, then Super with verifier feedback, then Ultra | `run_argon_turn(attempt=2)` |
-| ASSIST | `nvidia/Nemotron-3.5-Super-VL` | 0.30 / 0.06 / 0.90 | Looks at each product photo and drafts three alt-text candidates. A person picks one | `draft_alt_candidates_for_image` |
-| ROUTER | `nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B` | 0.06 / – / 0.24 | Reads each diff and flags visible wording changes for the human reviewer. It can only add review items | `run_wording_guard` |
-| REVIEW | `nvidia/nemotron-3-super-120b-a12b` | as FIX | Explains the findings on a real third-party template (Scene D) | `diagnose_aviato` |
+| Role | Model | $ in / cached in / out | What it does (where) |
+|---|---|---|---|
+| FIX | `nvidia/nemotron-3-super-120b-a12b` | 0.30 / 0.06 / 0.90 | Diagnoses one root-cause group and proposes whole-file patches through tool calls (listed below). `NebiusRuntime.run_argon_turn` |
+| ESCALATE | `nvidia/Nemotron-3-Ultra-550b-a55b` | 1.00 / 0.12 / 3.00 | Called only on a group's second retry: Super, then Super with verifier feedback, then Ultra. `run_argon_turn(attempt=2)` |
+| ASSIST | `nvidia/Nemotron-3.5-Super-VL` | 0.30 / 0.06 / 0.90 | Looks at each product photo and drafts three alt-text candidates. A person picks one. `draft_alt_candidates_for_image` |
+| ROUTER | `nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B` | 0.06 / – / 0.24 | Reads each diff and flags visible wording changes for the human reviewer. It can only add review items. `run_wording_guard` |
+| REVIEW | `nvidia/nemotron-3-super-120b-a12b` | as FIX | Explains the findings on a real third-party template (Scene D). `diagnose_aviato` |
+
+FIX tool calls: `update`, `submit_diagnosis`, `propose_patch`, `read_file`, `run_scan`, `escalate_group`.
 
 **Tavily** grounds each verdict in the source text. When Placebo rejects a patch or asks a person to review something, [`citations.py`](citations.py) works out the WCAG success criterion involved. It uses axe-core's own tags (`wcag143` → 1.4.3) or, for Guard findings, a small fixed table. Tavily then fetches the current W3C "Understanding" page for that criterion at runtime, and the reviewer reads W3C's words, not our paraphrase. Without a Tavily key, the citation falls back to a static W3C link marked "not fetched".
 
@@ -53,6 +102,7 @@ No model decides pass or fail. Every candidate is scanned on all four store page
 | 5 | Total violations are strictly below the baseline. |
 | 6 (held out) | Per page, the counts of links, buttons, inputs, selects and images, and the visible text length, must not drop. Content must not be newly hidden (`display:none`, `visibility:hidden`, `opacity:0`, `font-size:0`, transparent text, clipping). `<title>` and `<meta>` must not end up inside `<body>`. Visually hidden text on non-interactive elements is allowed (the 1px clip pattern, for example a hidden label). A failure here goes straight to a person, and the model is never told why. |
 | Guard | Rejects files outside the store's whitelist, changed `id` attributes, generic names (`image`, `button`, `link`, file names…), `role="presentation"` or `alt=""` on content images, and inputs named only by `placeholder`. |
+
 
 ## Measured on Oct 27, 2026
 
@@ -135,17 +185,24 @@ To reproduce the benchmark, you need Google Chrome for the headless scans, and t
 
 ```bash
 (cd bench && npm install)
-node bench/trials.mjs 5 bench/results/placebo.json http://127.0.0.1:8080                       # Placebo end to end, through the real UI
-.venv/bin/python bench/ablation.py --runs 10 --rounds 8 --out bench/results/checker-only.json   # starts its own server on :8782
-node bench/record_replay.mjs replays/my-run.json http://127.0.0.1:8080                         # every scene, then the trace
-.venv/bin/python test_nebius_runtime.py                                                       # offline, no key
+# Placebo end to end, through the real UI
+node bench/trials.mjs 5 bench/results/placebo.json http://127.0.0.1:8080
+# starts its own server on :8782
+.venv/bin/python bench/ablation.py --runs 10 --rounds 8 --out bench/results/checker-only.json
+# every scene, then the trace
+node bench/record_replay.mjs replays/my-run.json http://127.0.0.1:8080
+# offline, no key
+.venv/bin/python test_nebius_runtime.py
 ```
 
 [`render.yaml`](render.yaml) describes the free Render web service. Secrets are set in the Render dashboard, never in the file.
 
-## Credits and licenses
+<details>
+<summary><h2><a name="credits-and-licenses"></a>Credits and licenses</h2></summary>
 
 - Placebo is MIT-licensed ([LICENSE](LICENSE)); third-party notices are in [NOTICE](NOTICE).
 - [axe-core](https://github.com/dequelabs/axe-core) v4.14.0 by Deque Systems runs in the browser (MPL-2.0, header kept in `static/axe.min.js`).
 - The real-template fixture `inputs/aviato/` is [themefisher/aviato-bootstrap](https://github.com/themefisher/aviato-bootstrap) (MIT, license kept, scripts stripped).
 - The product images were generated for the Oct 16 version.
+
+</details>
