@@ -23,6 +23,7 @@ import time
 import urllib.error
 import urllib.request
 import uuid
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Callable
 
@@ -39,6 +40,9 @@ BASE_URL = os.environ.get("NEBIUS_BASE_URL", "https://api.tokenfactory.nebius.co
 NEMOTRON_SEMAPHORE = asyncio.Semaphore(2)
 log = logging.getLogger("placebo.nebius")
 SPEND_CAP_USD = float(os.environ.get("SPEND_CAP_USD", "10"))
+# ponytail: both caps live in process memory, so a restart resets them; DEMO_TOKEN gates live runs on the public deploy
+DAILY_CAP_USD = float(os.environ.get("DAILY_CAP_USD", "0"))  # 0 = off; counted per KST day
+KST = timezone(timedelta(hours=9))
 
 # USD per 1M tokens from GET /v1/models?verbose=true (checked 2026-10-27) for the on-screen spend meter;
 # Token Factory billing is the source of truth
@@ -170,6 +174,14 @@ class NebiusRuntime:
         self.pin_thinking_low = False
         self.cost_mode = os.environ.get("COST_MODE", "save").strip().lower()
         self._histories: dict[str, list[dict[str, Any]]] = {}
+        self._day, self._day_spend = datetime.now(KST).date(), 0.0
+
+    def cap_reason(self) -> str | None:
+        if self.total_spend_usd >= SPEND_CAP_USD:
+            return f"cumulative ${SPEND_CAP_USD:g} spend cap reached"
+        if DAILY_CAP_USD and datetime.now(KST).date() == self._day and self._day_spend >= DAILY_CAP_USD:
+            return f"daily ${DAILY_CAP_USD:g} spend cap reached (resets at midnight KST)"
+        return None
 
     async def ensure_models_verified(self) -> list[str]:
         if self.models_checked and self.verified_models:
@@ -196,6 +208,10 @@ class NebiusRuntime:
         cost = ((in_tok - cached) * rates["input"] + cached * rates.get("cached", rates["input"])
                 + out_tok * rates["output"]) / 1e6
         self.total_spend_usd = round(self.total_spend_usd + cost, 6)
+        today = datetime.now(KST).date()
+        if today != self._day:
+            self._day, self._day_spend = today, 0.0
+        self._day_spend += cost
         info = {
             "model": model,
             "provider": "Nebius Token Factory",
@@ -223,9 +239,8 @@ class NebiusRuntime:
         on_event: Callable[[dict[str, Any]], None] | None = None,
         attempt: int = 0,
     ) -> dict[str, Any]:
-        if self.total_spend_usd >= SPEND_CAP_USD:
-            return {"status": "handoff", "reason": "spend_cap_reached",
-                    "message": f"Escalated to human: cumulative ${SPEND_CAP_USD:g} spend cap reached"}
+        if cap := self.cap_reason():
+            return {"status": "handoff", "reason": "spend_cap_reached", "message": f"Escalated to human: {cap}"}
         demo = is_demo_mode()
         short = is_retry and attempt < 2  # the Ultra escalation is a slower model: give it the first-try budget
         cutoff_s = (40.0 if short else 85.0) if demo else (60.0 if short else 120.0)
@@ -374,6 +389,8 @@ class NebiusRuntime:
             content.insert(0, {"type": "image_url", "image_url": {
                 "url": "data:image/jpeg;base64," + base64.b64encode(image_bytes).decode("ascii")}})
         try:
+            if cap := self.cap_reason():
+                raise RuntimeError(cap)  # falls through to the labeled fallback candidates below
             resp = await asyncio.to_thread(_chat, {"model": m_id, "messages": [{"role": "user", "content": content}],
                                                    "max_tokens": 4096, "temperature": 0.4}, 45)
             usage = self.record_usage(m_id, resp.get("usage"))
@@ -410,6 +427,10 @@ class NebiusRuntime:
                               css_excerpt: str) -> dict[str, Any]:
         m_id = get_role_model("REVIEW")
         t0 = time.time()
+        if cap := self.cap_reason():
+            return {"model": m_id, "elapsed_s": 0.0, "usage": {}, "diagnosis": {
+                "headline": f"Live diagnosis paused: {cap}. The recorded run shows this scene.",
+                "shared_root_causes": [], "why_axe_alone_is_not_enough": ""}}
         prompt = (
             "You are diagnosing a real-world third-party Bootstrap e-commerce template (Themefisher Aviato, 5 pages).\n"
             "Analyze both the axe-core violations AND the three 'Passes axe — flagged by Placebo' findings below, plus the shared CSS excerpt.\n"

@@ -54,6 +54,11 @@ await page.click('#btn-scene-d');
 run = await until('scene D', (r) => r.aviato_diagnosis, 4 * 60e3);
 console.log('scene D', run.aviato_findings?.length ?? 0, 'findings');
 
+// WCAG sources (Tavily) for every scored version, so the replay shows them without any live call
+for (const v of Object.keys(run.versions).map(Number).filter((v) => v > 0)) {
+  const c = await (await fetch(`${BASE}/api/run/${run.run_id}/citations/${v}`)).json();
+  console.log('citations v' + v, (c.citations || []).map((x) => `${x.sc}:${x.source.split(' ')[0]}`).join(' '));
+}
 const trace = await (await fetch(`${BASE}/api/run/${run.run_id}/trace.json`)).text();
 fs.writeFileSync(OUT, trace);
 console.log('saved', OUT, (trace.length / 1024).toFixed(0) + 'KB');

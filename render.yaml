@@ -1,0 +1,27 @@
+# Render Blueprint: one free web service. Secrets (NEBIUS_API_KEY, TAVILY_API_KEY, DEMO_TOKEN) are set in the
+# dashboard or API, never in this file. The first screen is the recorded run, so judges need no token to see it.
+services:
+  - type: web
+    name: placebo
+    runtime: python
+    plan: free
+    region: frankfurt
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.7
+      - key: MODEL_BACKEND
+        value: nebius
+      - key: SPEND_CAP_USD   # per server process; the free plan restarts after idling, see README
+        value: "15"
+      - key: DAILY_CAP_USD
+        value: "2"
+      - key: NEBIUS_API_KEY
+        sync: false
+      - key: TAVILY_API_KEY
+        sync: false
+      - key: DEMO_TOKEN
+        sync: false

@@ -15,6 +15,7 @@ from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
+from citations import cite_version
 from gemini_agent import build_cached_prefix_and_prompt
 
 # Model backend: Nebius Token Factory + NVIDIA Nemotron by default; MODEL_BACKEND=gemini restores the original Gemini path.
@@ -296,6 +297,7 @@ def _create_new_run() -> dict[str, Any]:
         "aviato_scan": None,
         "aviato_findings": None,
         "aviato_diagnosis": None,
+        "citations": {},
     }
     RUNS[run_id] = run_state
     CURRENT_RUN_ID = run_id
@@ -526,7 +528,8 @@ def _build_verifier_runner_script(
                     help: v.help || '',
                     selector: sel,
                     html: (n.html || '').slice(0, 220),
-                    failureSummary: (n.failureSummary || '').slice(0, 240)
+                    failureSummary: (n.failureSummary || '').slice(0, 240),
+                    wcag: (v.tags || []).filter(function(t) {{ return /^wcag\\d{{3,4}}$/.test(t); }})
                   }});
                 }}
               }}
@@ -737,6 +740,7 @@ async def get_state(run_id: str | None = None) -> dict[str, Any]:
         "spend": {
             "total_usd": round(RUNTIME.total_spend_usd, 4),
             "cap_usd": SPEND_CAP_USD,
+            "daily_cap_usd": float(os.environ.get("DAILY_CAP_USD", "0")),
             "cost_mode": RUNTIME.cost_mode,
             "calls_count": len(RUNTIME.calls_log),
         },
@@ -767,6 +771,8 @@ def _serialize_run(run: dict[str, Any]) -> dict[str, Any]:
             "eval": v_data.get("eval"),
             "diff": v_data.get("diff", ""),
             "diagnosis": v_data.get("diagnosis"),
+            "group_id": v_data.get("group_id"),
+            "targeted_keys": v_data.get("targeted_keys") or [],
         }
     return {
         "run_id": run["run_id"],
@@ -788,6 +794,7 @@ def _serialize_run(run: dict[str, Any]) -> dict[str, Any]:
         "aviato_scan": run["aviato_scan"],
         "aviato_findings": run["aviato_findings"],
         "aviato_diagnosis": run["aviato_diagnosis"],
+        "citations": run.get("citations", {}),
     }
 
 
@@ -1170,12 +1177,12 @@ async def stream_group_patch(
 
             diff_txt = compute_unified_diff(approved_v["files"], candidate_files)
 
-            # Optional Flash-Lite wording guard (only adds items to human review list, never removes)
+            # Optional Nano wording guard (only adds items to the human review list, never removes)
             if diff_txt and guard_res["can_render"]:
                 wg = await RUNTIME.run_wording_guard(diff_txt)
                 for item in wg.get("items", []):
                     if item not in guard_res["human_review_items"]:
-                        guard_res["human_review_items"].append(f"[Flash-Lite wording check] {item}")
+                        guard_res["human_review_items"].append(f"[{get_role_model('ROUTER').split('/')[-1]} wording check] {item}")
 
             new_v = max(run["versions"].keys()) + 1
             targeted_specs = patch_obj.get("targeted_keys") or [
@@ -1532,6 +1539,21 @@ async def run_aviato_diagnosis(run_id: str, request: Request) -> dict[str, Any]:
         "diagnosis": diag_res,
         "run": _serialize_run(run),
     }
+
+
+@app.get("/api/run/{run_id}/citations/{version}")
+async def get_citations(run_id: str, version: int) -> dict[str, Any]:
+    """WCAG sources for a version's verdict and review items, fetched live with Tavily (cached per criterion)."""
+    run = RUNS.get(run_id)
+    if not run:
+        raise HTTPException(status_code=404, detail="Run not found")
+    v_obj = run["versions"].get(version)
+    if not v_obj:
+        raise HTTPException(status_code=404, detail="Version not found")
+    base_keys = (run["versions"][0].get("scan") or {}).get("keys") or []
+    cites = await asyncio.to_thread(cite_version, v_obj, run["groups"].get(v_obj.get("group_id") or ""), base_keys)
+    run.setdefault("citations", {})[str(version)] = cites
+    return {"version": version, "citations": cites}
 
 
 @app.get("/api/run/{run_id}/trace.json")
