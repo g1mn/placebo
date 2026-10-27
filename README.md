@@ -2,7 +2,7 @@
 
 **A Nemotron coding agent that fixes accessibility at the source, and can't fool its own tests. Hear the difference.**
 
-[Watch the recorded run](https://placebo-uluj.onrender.com/?replay=demo-run) (no token needed) · [Live demo](https://placebo-uluj.onrender.com) (live runs need the judge token from the Devpost testing instructions) · Video: coming · [Feedback on Token Factory and Nemotron](FEEDBACK.md)
+[Watch the recorded run](https://placebo-uluj.onrender.com/?replay=demo-run) (no token needed) · [Live demo](https://placebo-uluj.onrender.com) (live runs need the judge token from the Devpost testing instructions) · [Video (2:50)](https://youtu.be/z8mr49CeTvI) · [Feedback on Token Factory and Nemotron](FEEDBACK.md)
 
 > The demo runs on Render's free plan. If nobody has opened it for a while, the first load can take about a minute.
 
