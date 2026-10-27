@@ -1,0 +1,907 @@
+[
+ {
+  "trial": 1,
+  "run_id": "run-143430-955f",
+  "failed_diffs": {},
+  "llm_wall_s": 117.392,
+  "spend_usd": 0.0553,
+  "baseline_total": 58,
+  "approved_version": 5,
+  "approved_total": 13,
+  "current_total": 0,
+  "current_all_pass": true,
+  "groups": {
+   "tokens": {
+    "status": "approved",
+    "retries_used": 0,
+    "timeouts": 0,
+    "guard_rejections": 0,
+    "handoff_reason": null,
+    "last_model": "nvidia/nemotron-3-super-120b-a12b",
+    "human_review_items": 2
+   },
+   "header": {
+    "status": "approved",
+    "retries_used": 0,
+    "timeouts": 0,
+    "guard_rejections": 0,
+    "handoff_reason": null,
+    "last_model": "nvidia/nemotron-3-super-120b-a12b",
+    "human_review_items": 3
+   },
+   "link": {
+    "status": "approved",
+    "retries_used": 0,
+    "timeouts": 0,
+    "guard_rejections": 0,
+    "handoff_reason": null,
+    "last_model": "nvidia/nemotron-3-super-120b-a12b",
+    "human_review_items": 4
+   },
+   "form": {
+    "status": "approved",
+    "retries_used": 0,
+    "timeouts": 0,
+    "guard_rejections": 0,
+    "handoff_reason": null,
+    "last_model": "nvidia/nemotron-3-super-120b-a12b",
+    "human_review_items": 3
+   },
+   "lang": {
+    "status": "approved",
+    "retries_used": 0,
+    "timeouts": 0,
+    "guard_rejections": 0,
+    "handoff_reason": null,
+    "last_model": "nvidia/nemotron-3-super-120b-a12b",
+    "human_review_items": 0
+   },
+   "image-alt": {
+    "status": "pending_approval",
+    "retries_used": 0,
+    "timeouts": 0,
+    "guard_rejections": 0,
+    "handoff_reason": null,
+    "last_model": "nvidia/Nemotron-3.5-Super-VL",
+    "human_review_items": 15,
+    "alt_pass": true
+   }
+  },
+  "trace": [
+   {
+    "v": 1,
+    "g": "tokens",
+    "model": "nvidia/nemotron-3-super-120b-a12b",
+    "before": 58,
+    "after": 41,
+    "guard": true,
+    "hidden": true,
+    "verdict": "SUCCESS",
+    "s": 24.65,
+    "usd": 0.00925,
+    "tok": 45449
+   },
+   {
+    "v": 2,
+    "g": "header",
+    "model": "nvidia/nemotron-3-super-120b-a12b",
+    "before": 41,
+    "after": 33,
+    "guard": true,
+    "hidden": true,
+    "verdict": "SUCCESS",
+    "s": 19.76,
+    "usd": 0.01205,
+    "tok": 64937
+   },
+   {
+    "v": 3,
+    "g": "link",
+    "model": "nvidia/nemotron-3-super-120b-a12b",
+    "before": 33,
+    "after": 21,
+    "guard": true,
+    "hidden": true,
+    "verdict": "SUCCESS",
+    "s": 23.11,
+    "usd": 0.01126,
+    "tok": 71219
+   },
+   {
+    "v": 4,
+    "g": "form",
+    "model": "nvidia/nemotron-3-super-120b-a12b",
+    "before": 21,
+    "after": 17,
+    "guard": true,
+    "hidden": true,
+    "verdict": "SUCCESS",
+    "s": 14.69,
+    "usd": 0.01027,
+    "tok": 66485
+   },
+   {
+    "v": 5,
+    "g": "lang",
+    "model": "nvidia/nemotron-3-super-120b-a12b",
+    "before": 17,
+    "after": 13,
+    "guard": true,
+    "hidden": true,
+    "verdict": "SUCCESS",
+    "s": 3.82,
+    "usd": 0.00488,
+    "tok": 22122
+   },
+   {
+    "v": 6,
+    "g": "image-alt",
+    "model": "nvidia/Nemotron-3.5-Super-VL",
+    "before": 13,
+    "after": 0,
+    "guard": true,
+    "hidden": true,
+    "verdict": "SUCCESS",
+    "s": 0.05,
+    "usd": 0,
+    "tok": 0
+   }
+  ],
+  "evals": {
+   "1": {
+    "all_pass": true,
+    "failed": [],
+    "hidden": []
+   },
+   "2": {
+    "all_pass": true,
+    "failed": [],
+    "hidden": []
+   },
+   "3": {
+    "all_pass": true,
+    "failed": [],
+    "hidden": []
+   },
+   "4": {
+    "all_pass": true,
+    "failed": [],
+    "hidden": []
+   },
+   "5": {
+    "all_pass": true,
+    "failed": [],
+    "hidden": []
+   },
+   "6": {
+    "all_pass": true,
+    "failed": [],
+    "hidden": []
+   }
+  }
+ },
+ {
+  "trial": 2,
+  "run_id": "run-143631-9194",
+  "failed_diffs": {},
+  "llm_wall_s": 117.705,
+  "spend_usd": 0.041,
+  "baseline_total": 58,
+  "approved_version": 5,
+  "approved_total": 13,
+  "current_total": 0,
+  "current_all_pass": true,
+  "groups": {
+   "tokens": {
+    "status": "approved",
+    "retries_used": 0,
+    "timeouts": 0,
+    "guard_rejections": 0,
+    "handoff_reason": null,
+    "last_model": "nvidia/nemotron-3-super-120b-a12b",
+    "human_review_items": 2
+   },
+   "header": {
+    "status": "approved",
+    "retries_used": 0,
+    "timeouts": 0,
+    "guard_rejections": 0,
+    "handoff_reason": null,
+    "last_model": "nvidia/nemotron-3-super-120b-a12b",
+    "human_review_items": 3
+   },
+   "link": {
+    "status": "approved",
+    "retries_used": 0,
+    "timeouts": 0,
+    "guard_rejections": 0,
+    "handoff_reason": null,
+    "last_model": "nvidia/nemotron-3-super-120b-a12b",
+    "human_review_items": 4
+   },
+   "form": {
+    "status": "approved",
+    "retries_used": 0,
+    "timeouts": 0,
+    "guard_rejections": 0,
+    "handoff_reason": null,
+    "last_model": "nvidia/nemotron-3-super-120b-a12b",
+    "human_review_items": 2
+   },
+   "lang": {
+    "status": "approved",
+    "retries_used": 0,
+    "timeouts": 0,
+    "guard_rejections": 0,
+    "handoff_reason": null,
+    "last_model": "nvidia/nemotron-3-super-120b-a12b",
+    "human_review_items": 0
+   },
+   "image-alt": {
+    "status": "pending_approval",
+    "retries_used": 0,
+    "timeouts": 0,
+    "guard_rejections": 0,
+    "handoff_reason": null,
+    "last_model": "nvidia/Nemotron-3.5-Super-VL",
+    "human_review_items": 15,
+    "alt_pass": true
+   }
+  },
+  "trace": [
+   {
+    "v": 1,
+    "g": "tokens",
+    "model": "nvidia/nemotron-3-super-120b-a12b",
+    "before": 58,
+    "after": 41,
+    "guard": true,
+    "hidden": true,
+    "verdict": "SUCCESS",
+    "s": 14,
+    "usd": 0.00444,
+    "tok": 24074
+   },
+   {
+    "v": 2,
+    "g": "header",
+    "model": "nvidia/nemotron-3-super-120b-a12b",
+    "before": 41,
+    "after": 33,
+    "guard": true,
+    "hidden": true,
+    "verdict": "SUCCESS",
+    "s": 17.03,
+    "usd": 0.00631,
+    "tok": 65095
+   },
+   {
+    "v": 3,
+    "g": "link",
+    "model": "nvidia/nemotron-3-super-120b-a12b",
+    "before": 33,
+    "after": 21,
+    "guard": true,
+    "hidden": true,
+    "verdict": "SUCCESS",
+    "s": 26.16,
+    "usd": 0.00936,
+    "tok": 72786
+   },
+   {
+    "v": 4,
+    "g": "form",
+    "model": "nvidia/nemotron-3-super-120b-a12b",
+    "before": 21,
+    "after": 17,
+    "guard": true,
+    "hidden": true,
+    "verdict": "SUCCESS",
+    "s": 12.68,
+    "usd": 0.0051,
+    "tok": 66564
+   },
+   {
+    "v": 5,
+    "g": "lang",
+    "model": "nvidia/nemotron-3-super-120b-a12b",
+    "before": 17,
+    "after": 13,
+    "guard": true,
+    "hidden": true,
+    "verdict": "SUCCESS",
+    "s": 11.44,
+    "usd": 0.00811,
+    "tok": 66328
+   },
+   {
+    "v": 6,
+    "g": "image-alt",
+    "model": "nvidia/Nemotron-3.5-Super-VL",
+    "before": 13,
+    "after": 0,
+    "guard": true,
+    "hidden": true,
+    "verdict": "SUCCESS",
+    "s": 0.05,
+    "usd": 0,
+    "tok": 0
+   }
+  ],
+  "evals": {
+   "1": {
+    "all_pass": true,
+    "failed": [],
+    "hidden": []
+   },
+   "2": {
+    "all_pass": true,
+    "failed": [],
+    "hidden": []
+   },
+   "3": {
+    "all_pass": true,
+    "failed": [],
+    "hidden": []
+   },
+   "4": {
+    "all_pass": true,
+    "failed": [],
+    "hidden": []
+   },
+   "5": {
+    "all_pass": true,
+    "failed": [],
+    "hidden": []
+   },
+   "6": {
+    "all_pass": true,
+    "failed": [],
+    "hidden": []
+   }
+  }
+ },
+ {
+  "trial": 3,
+  "run_id": "run-143833-42e4",
+  "failed_diffs": {},
+  "llm_wall_s": 84.252,
+  "spend_usd": 0.0467,
+  "baseline_total": 58,
+  "approved_version": 5,
+  "approved_total": 13,
+  "current_total": 0,
+  "current_all_pass": true,
+  "groups": {
+   "tokens": {
+    "status": "approved",
+    "retries_used": 0,
+    "timeouts": 0,
+    "guard_rejections": 0,
+    "handoff_reason": null,
+    "last_model": "nvidia/nemotron-3-super-120b-a12b",
+    "human_review_items": 2
+   },
+   "header": {
+    "status": "approved",
+    "retries_used": 0,
+    "timeouts": 0,
+    "guard_rejections": 0,
+    "handoff_reason": null,
+    "last_model": "nvidia/nemotron-3-super-120b-a12b",
+    "human_review_items": 3
+   },
+   "link": {
+    "status": "approved",
+    "retries_used": 0,
+    "timeouts": 0,
+    "guard_rejections": 0,
+    "handoff_reason": null,
+    "last_model": "nvidia/nemotron-3-super-120b-a12b",
+    "human_review_items": 4
+   },
+   "form": {
+    "status": "approved",
+    "retries_used": 0,
+    "timeouts": 0,
+    "guard_rejections": 0,
+    "handoff_reason": null,
+    "last_model": "nvidia/nemotron-3-super-120b-a12b",
+    "human_review_items": 2
+   },
+   "lang": {
+    "status": "approved",
+    "retries_used": 0,
+    "timeouts": 0,
+    "guard_rejections": 0,
+    "handoff_reason": null,
+    "last_model": "nvidia/nemotron-3-super-120b-a12b",
+    "human_review_items": 0
+   },
+   "image-alt": {
+    "status": "pending_approval",
+    "retries_used": 0,
+    "timeouts": 0,
+    "guard_rejections": 0,
+    "handoff_reason": null,
+    "last_model": "nvidia/Nemotron-3.5-Super-VL",
+    "human_review_items": 15,
+    "alt_pass": true
+   }
+  },
+  "trace": [
+   {
+    "v": 1,
+    "g": "tokens",
+    "model": "nvidia/nemotron-3-super-120b-a12b",
+    "before": 58,
+    "after": 41,
+    "guard": true,
+    "hidden": true,
+    "verdict": "SUCCESS",
+    "s": 22.03,
+    "usd": 0.01051,
+    "tok": 66048
+   },
+   {
+    "v": 2,
+    "g": "header",
+    "model": "nvidia/nemotron-3-super-120b-a12b",
+    "before": 41,
+    "after": 33,
+    "guard": true,
+    "hidden": true,
+    "verdict": "SUCCESS",
+    "s": 7.85,
+    "usd": 0.00538,
+    "tok": 22027
+   },
+   {
+    "v": 3,
+    "g": "link",
+    "model": "nvidia/nemotron-3-super-120b-a12b",
+    "before": 33,
+    "after": 21,
+    "guard": true,
+    "hidden": true,
+    "verdict": "SUCCESS",
+    "s": 16.53,
+    "usd": 0.01302,
+    "tok": 69509
+   },
+   {
+    "v": 4,
+    "g": "form",
+    "model": "nvidia/nemotron-3-super-120b-a12b",
+    "before": 21,
+    "after": 17,
+    "guard": true,
+    "hidden": true,
+    "verdict": "SUCCESS",
+    "s": 3.89,
+    "usd": 0.0049,
+    "tok": 22153
+   },
+   {
+    "v": 5,
+    "g": "lang",
+    "model": "nvidia/nemotron-3-super-120b-a12b",
+    "before": 17,
+    "after": 13,
+    "guard": true,
+    "hidden": true,
+    "verdict": "SUCCESS",
+    "s": 3.99,
+    "usd": 0.00492,
+    "tok": 22165
+   },
+   {
+    "v": 6,
+    "g": "image-alt",
+    "model": "nvidia/Nemotron-3.5-Super-VL",
+    "before": 13,
+    "after": 0,
+    "guard": true,
+    "hidden": true,
+    "verdict": "SUCCESS",
+    "s": 0.05,
+    "usd": 0,
+    "tok": 0
+   }
+  ],
+  "evals": {
+   "1": {
+    "all_pass": true,
+    "failed": [],
+    "hidden": []
+   },
+   "2": {
+    "all_pass": true,
+    "failed": [],
+    "hidden": []
+   },
+   "3": {
+    "all_pass": true,
+    "failed": [],
+    "hidden": []
+   },
+   "4": {
+    "all_pass": true,
+    "failed": [],
+    "hidden": []
+   },
+   "5": {
+    "all_pass": true,
+    "failed": [],
+    "hidden": []
+   },
+   "6": {
+    "all_pass": true,
+    "failed": [],
+    "hidden": []
+   }
+  }
+ },
+ {
+  "trial": 4,
+  "run_id": "run-144001-1f20",
+  "failed_diffs": {},
+  "llm_wall_s": 135.385,
+  "spend_usd": 0.0564,
+  "baseline_total": 58,
+  "approved_version": 5,
+  "approved_total": 13,
+  "current_total": 0,
+  "current_all_pass": true,
+  "groups": {
+   "tokens": {
+    "status": "approved",
+    "retries_used": 0,
+    "timeouts": 0,
+    "guard_rejections": 0,
+    "handoff_reason": null,
+    "last_model": "nvidia/nemotron-3-super-120b-a12b",
+    "human_review_items": 2
+   },
+   "header": {
+    "status": "approved",
+    "retries_used": 0,
+    "timeouts": 0,
+    "guard_rejections": 0,
+    "handoff_reason": null,
+    "last_model": "nvidia/nemotron-3-super-120b-a12b",
+    "human_review_items": 3
+   },
+   "link": {
+    "status": "approved",
+    "retries_used": 0,
+    "timeouts": 0,
+    "guard_rejections": 0,
+    "handoff_reason": null,
+    "last_model": "nvidia/nemotron-3-super-120b-a12b",
+    "human_review_items": 4
+   },
+   "form": {
+    "status": "approved",
+    "retries_used": 0,
+    "timeouts": 0,
+    "guard_rejections": 0,
+    "handoff_reason": null,
+    "last_model": "nvidia/nemotron-3-super-120b-a12b",
+    "human_review_items": 2
+   },
+   "lang": {
+    "status": "approved",
+    "retries_used": 0,
+    "timeouts": 0,
+    "guard_rejections": 0,
+    "handoff_reason": null,
+    "last_model": "nvidia/nemotron-3-super-120b-a12b",
+    "human_review_items": 0
+   },
+   "image-alt": {
+    "status": "pending_approval",
+    "retries_used": 0,
+    "timeouts": 0,
+    "guard_rejections": 0,
+    "handoff_reason": null,
+    "last_model": "nvidia/Nemotron-3.5-Super-VL",
+    "human_review_items": 15,
+    "alt_pass": true
+   }
+  },
+  "trace": [
+   {
+    "v": 1,
+    "g": "tokens",
+    "model": "nvidia/nemotron-3-super-120b-a12b",
+    "before": 58,
+    "after": 41,
+    "guard": true,
+    "hidden": true,
+    "verdict": "SUCCESS",
+    "s": 41.64,
+    "usd": 0.01375,
+    "tok": 69645
+   },
+   {
+    "v": 2,
+    "g": "header",
+    "model": "nvidia/nemotron-3-super-120b-a12b",
+    "before": 41,
+    "after": 33,
+    "guard": true,
+    "hidden": true,
+    "verdict": "SUCCESS",
+    "s": 17.88,
+    "usd": 0.00919,
+    "tok": 65034
+   },
+   {
+    "v": 3,
+    "g": "link",
+    "model": "nvidia/nemotron-3-super-120b-a12b",
+    "before": 33,
+    "after": 21,
+    "guard": true,
+    "hidden": true,
+    "verdict": "SUCCESS",
+    "s": 22.08,
+    "usd": 0.01307,
+    "tok": 69566
+   },
+   {
+    "v": 4,
+    "g": "form",
+    "model": "nvidia/nemotron-3-super-120b-a12b",
+    "before": 21,
+    "after": 17,
+    "guard": true,
+    "hidden": true,
+    "verdict": "SUCCESS",
+    "s": 13.21,
+    "usd": 0.00806,
+    "tok": 66278
+   },
+   {
+    "v": 5,
+    "g": "lang",
+    "model": "nvidia/nemotron-3-super-120b-a12b",
+    "before": 17,
+    "after": 13,
+    "guard": true,
+    "hidden": true,
+    "verdict": "SUCCESS",
+    "s": 4.28,
+    "usd": 0.00489,
+    "tok": 22136
+   },
+   {
+    "v": 6,
+    "g": "image-alt",
+    "model": "nvidia/Nemotron-3.5-Super-VL",
+    "before": 13,
+    "after": 0,
+    "guard": true,
+    "hidden": true,
+    "verdict": "SUCCESS",
+    "s": 0.05,
+    "usd": 0,
+    "tok": 0
+   }
+  ],
+  "evals": {
+   "1": {
+    "all_pass": true,
+    "failed": [],
+    "hidden": []
+   },
+   "2": {
+    "all_pass": true,
+    "failed": [],
+    "hidden": []
+   },
+   "3": {
+    "all_pass": true,
+    "failed": [],
+    "hidden": []
+   },
+   "4": {
+    "all_pass": true,
+    "failed": [],
+    "hidden": []
+   },
+   "5": {
+    "all_pass": true,
+    "failed": [],
+    "hidden": []
+   },
+   "6": {
+    "all_pass": true,
+    "failed": [],
+    "hidden": []
+   }
+  }
+ },
+ {
+  "trial": 5,
+  "run_id": "run-144221-5b83",
+  "failed_diffs": {},
+  "llm_wall_s": 111.322,
+  "spend_usd": 0.0572,
+  "baseline_total": 58,
+  "approved_version": 5,
+  "approved_total": 13,
+  "current_total": 0,
+  "current_all_pass": true,
+  "groups": {
+   "tokens": {
+    "status": "approved",
+    "retries_used": 0,
+    "timeouts": 0,
+    "guard_rejections": 0,
+    "handoff_reason": null,
+    "last_model": "nvidia/nemotron-3-super-120b-a12b",
+    "human_review_items": 2
+   },
+   "header": {
+    "status": "approved",
+    "retries_used": 0,
+    "timeouts": 0,
+    "guard_rejections": 0,
+    "handoff_reason": null,
+    "last_model": "nvidia/nemotron-3-super-120b-a12b",
+    "human_review_items": 3
+   },
+   "link": {
+    "status": "approved",
+    "retries_used": 0,
+    "timeouts": 0,
+    "guard_rejections": 0,
+    "handoff_reason": null,
+    "last_model": "nvidia/nemotron-3-super-120b-a12b",
+    "human_review_items": 2
+   },
+   "form": {
+    "status": "approved",
+    "retries_used": 0,
+    "timeouts": 0,
+    "guard_rejections": 0,
+    "handoff_reason": null,
+    "last_model": "nvidia/nemotron-3-super-120b-a12b",
+    "human_review_items": 2
+   },
+   "lang": {
+    "status": "approved",
+    "retries_used": 0,
+    "timeouts": 0,
+    "guard_rejections": 0,
+    "handoff_reason": null,
+    "last_model": "nvidia/nemotron-3-super-120b-a12b",
+    "human_review_items": 0
+   },
+   "image-alt": {
+    "status": "pending_approval",
+    "retries_used": 0,
+    "timeouts": 0,
+    "guard_rejections": 0,
+    "handoff_reason": null,
+    "last_model": "nvidia/Nemotron-3.5-Super-VL",
+    "human_review_items": 15,
+    "alt_pass": true
+   }
+  },
+  "trace": [
+   {
+    "v": 1,
+    "g": "tokens",
+    "model": "nvidia/nemotron-3-super-120b-a12b",
+    "before": 58,
+    "after": 41,
+    "guard": true,
+    "hidden": true,
+    "verdict": "SUCCESS",
+    "s": 26.37,
+    "usd": 0.01176,
+    "tok": 67427
+   },
+   {
+    "v": 2,
+    "g": "header",
+    "model": "nvidia/nemotron-3-super-120b-a12b",
+    "before": 41,
+    "after": 33,
+    "guard": true,
+    "hidden": true,
+    "verdict": "SUCCESS",
+    "s": 17.24,
+    "usd": 0.01203,
+    "tok": 64916
+   },
+   {
+    "v": 3,
+    "g": "link",
+    "model": "nvidia/nemotron-3-super-120b-a12b",
+    "before": 33,
+    "after": 21,
+    "guard": true,
+    "hidden": true,
+    "verdict": "SUCCESS",
+    "s": 19.19,
+    "usd": 0.01311,
+    "tok": 69612
+   },
+   {
+    "v": 4,
+    "g": "form",
+    "model": "nvidia/nemotron-3-super-120b-a12b",
+    "before": 21,
+    "after": 17,
+    "guard": true,
+    "hidden": true,
+    "verdict": "SUCCESS",
+    "s": 4.67,
+    "usd": 0.00174,
+    "tok": 22163
+   },
+   {
+    "v": 5,
+    "g": "lang",
+    "model": "nvidia/nemotron-3-super-120b-a12b",
+    "before": 17,
+    "after": 13,
+    "guard": true,
+    "hidden": true,
+    "verdict": "SUCCESS",
+    "s": 11.03,
+    "usd": 0.0108,
+    "tok": 65776
+   },
+   {
+    "v": 6,
+    "g": "image-alt",
+    "model": "nvidia/Nemotron-3.5-Super-VL",
+    "before": 13,
+    "after": 0,
+    "guard": true,
+    "hidden": true,
+    "verdict": "SUCCESS",
+    "s": 0.05,
+    "usd": 0,
+    "tok": 0
+   }
+  ],
+  "evals": {
+   "1": {
+    "all_pass": true,
+    "failed": [],
+    "hidden": []
+   },
+   "2": {
+    "all_pass": true,
+    "failed": [],
+    "hidden": []
+   },
+   "3": {
+    "all_pass": true,
+    "failed": [],
+    "hidden": []
+   },
+   "4": {
+    "all_pass": true,
+    "failed": [],
+    "hidden": []
+   },
+   "5": {
+    "all_pass": true,
+    "failed": [],
+    "hidden": []
+   },
+   "6": {
+    "all_pass": true,
+    "failed": [],
+    "hidden": []
+   }
+  }
+ }
+]
