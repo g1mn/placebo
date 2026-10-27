@@ -1,4 +1,4 @@
 fastapi
 uvicorn[standard]
-google-genai>=2.30.1
 python-dotenv
+# MODEL_BACKEND=gemini (the Oct 16 version) also needs: google-genai>=2.30.1
