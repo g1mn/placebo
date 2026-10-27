@@ -67,7 +67,7 @@ All numbers come from [`bench/results/summary-2026-10-27.json`](bench/results/su
 | Whole run incl. Super-VL and Nano (median) | $0.055 | — | — |
 | Patch-model time per run (median) | 81 s | — | 163 s |
 
-- The public [recorded run](https://placebo-uluj.onrender.com/?replay=demo-run) is one more Nemotron run, made the same day through every scene. It cost $0.0668 in total across 25 model calls.
+- The public [recorded run](https://placebo-uluj.onrender.com/?replay=demo-run) is one more Nemotron run, made the same day through every scene. It cost $0.0734 across 28 Token Factory calls. Its WCAG citations came from Tavily searches, which are billed separately on Tavily's free tier.
 - In one of the two Ultra-only runs, a TLS handshake timeout dropped one group, so treat that column as indicative.
 - The Gemini column is a single recording, so it is not a reliability comparison.
 

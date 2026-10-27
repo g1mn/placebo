@@ -54,6 +54,8 @@
   "cost_usd_median": 0.0265
  },
  "replay_demo_run_nemotron": {
-  "whole_recording_usd": 0.0668
+  "whole_recording_usd": 0.0734,
+  "model_calls": 28,
+  "note": "re-recorded 21:24 KST with WCAG citations; the earlier 16:33 recording cost $0.0668 over 25 calls"
  }
 }
