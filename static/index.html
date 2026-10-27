@@ -373,6 +373,9 @@
     .sticker-lg { font-size: 22px; padding: 7px 13px 6px; border-width: 2px; letter-spacing: 0.08em; }
     .axe-sticker { margin-top: 8px; }
     .reason-list { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 7px; font-size: 13px; line-height: 1.4; }
+    .hero-sources { margin-top: 12px; }
+    .hero-sources .reason-list { margin-top: 4px; }
+    .hero-sources a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
     .reason-list li { overflow-wrap: anywhere; }
     .reason-tag {
       display: block;
@@ -737,6 +740,10 @@
               <p style="margin:0;"><span id="hero-verdict" class="sticker sticker-lg">—</span></p>
               <ul id="hero-reasons" class="reason-list"></ul>
               <a id="hero-more" class="more-link" href="#verification-report" hidden></a>
+              <div id="hero-sources" class="hero-sources" hidden>
+                <p class="col-foot mono">WCAG source<span id="hero-sources-how"></span></p>
+                <ul id="hero-sources-list" class="reason-list"></ul>
+              </div>
             </div>
             <div class="rx-col">
               <h4 class="col-label">You hear</h4>
@@ -1096,6 +1103,45 @@
       return html;
     }
 
+    // WCAG sources for the version shown: stored in replays, fetched once (Tavily, server side) in live runs
+    var citeLoading = {};
+    function renderSources(v) {
+      var box = document.getElementById('hero-sources');
+      var list = document.getElementById('hero-sources-list');
+      var run = state && state.run;
+      if (!box || !run || !v) { if (box) box.hidden = true; return; }
+      var cites = (run.citations || {})[String(v)];
+      if (!cites && !isReplayMode && run.versions[v] && run.versions[v].eval && !citeLoading[v]) {
+        citeLoading[v] = true;
+        fetch('/api/run/' + encodeURIComponent(run.run_id) + '/citations/' + v).then(function(r) { return r.ok ? r.json() : null; }).then(function(d) {
+          if (!d) return;
+          run.citations = run.citations || {};
+          run.citations[String(v)] = d.citations || [];
+          if (Number(state.run.current_version) === Number(v)) renderSources(v);
+        }).catch(function() {});
+      }
+      list.innerHTML = '';
+      if (!cites || !cites.length) { box.hidden = true; return; }
+      var live = cites.some(function(c) { return /Tavily search/.test(c.source || ''); });
+      document.getElementById('hero-sources-how').textContent = live ? ' · fetched live with Tavily' : ' · W3C links (no Tavily key)';
+      cites.slice(0, 3).forEach(function(c) {
+        var li = document.createElement('li');
+        var a = document.createElement('a');
+        a.href = c.url; a.target = '_blank'; a.rel = 'noopener';
+        a.textContent = 'SC ' + c.sc + ' ' + c.name;
+        if (c.quote) a.title = c.quote;
+        li.appendChild(a);
+        if (!/Tavily search/.test(c.source || '')) {  // honest label: this one is the static W3C link, not a Tavily fetch
+          var note = document.createElement('span');
+          note.className = 'mono';
+          note.textContent = ' · W3C link';
+          li.appendChild(note);
+        }
+        list.appendChild(li);
+      });
+      box.hidden = false;
+    }
+
     // Short, data-derived reasons for the "Placebo says" column
     function rejectionReasons(ev) {
       var c = ev.conditions || {};
@@ -1287,6 +1333,7 @@
       axeSticker.hidden = !(curCount === 0);
 
       // Placebo says
+      renderSources(isBase ? 0 : curV.version);
       var verdictEl = document.getElementById('hero-verdict');
       var list = document.getElementById('hero-reasons');
       var more = document.getElementById('hero-more');
@@ -2279,8 +2326,8 @@
         selectVersion(finalVersionOf(state.run));
         return;
       }
-      // a live autopilot gets its own run, so two visitors never drive the same one
-      if (isReplayMode || Object.keys(state.run.versions || {}).length > 1) {
+      // leaving a replay: start a live run of our own (page loads already get their own run, see init)
+      if (isReplayMode) {
         var resp = await fetch('/reset', { method: 'POST', headers: authHeaders() });
         if (!resp.ok) { logLine('Could not start a fresh run: HTTP ' + resp.status); return; }
         state.run = (await resp.json()).run;
@@ -2401,6 +2448,11 @@
       var params = new URLSearchParams(window.location.search);
       var replayParam = params.get('replay');
       var autorun = params.get('autorun');
+      if (!replayParam) {
+        // every page view drives its own run; without this, visitors would share whichever run was created last
+        var rr = await fetch('/reset', { method: 'POST', headers: authHeaders() });
+        if (rr.ok) { state.run = (await rr.json()).run; renderUI(); }
+      }
       if (replayParam) {
         await loadRecordedReplay(replayParam);
       } else if (autorun === 'baseline') {
